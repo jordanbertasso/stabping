@@ -4,20 +4,9 @@ matrix:
   include:
     - os: linux
       rust: stable
-      env: TARGET=arm-unknown-linux-gnueabihf
-    - os: linux
-      rust: stable
       env: TARGET=x86_64-unknown-linux-gnu
 
 rust: stable
-
-addons:
-  apt:
-    packages:
-      - gcc-arm-linux-gnueabihf
-
-before_install:
-  - rustup target add "$TARGET"
 
 script:
   - cargo build --verbose --target="$TARGET"
