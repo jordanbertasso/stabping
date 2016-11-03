@@ -1,22 +1,25 @@
 language: rust
 
 matrix:
-  - os: linux
-    rust: stable
-    env: TARGET=arm-unknown-linux-gnueabihf
-  - os: linux
-    rust: stable
-    env: TARGET=x86_64-unknown-linux-gnu
-
-rust: stable
-
-addons:
-  apt:
-    packages:
-      - gcc-arm-linux-gnueabihf
+  include:
+    - os: linux
+      rust: stable
+      env: TARGET=arm-unknown-linux-gnueabihf
+      addons:
+        apt:
+          packages:
+            - gcc-arm-linux-gnueabihf
+            - libc6-armhf-cross
+            - libc6-dev-armhf-cross
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-gnu
 
 before_install:
-  - sh ~/rust-installer/rustup.sh --prefix=~/rust -y --disable-sudo target add "$TARGET"
+  - export PATH="$PATH:$HOME/.cargo/bin"
+  - curl 'https://sh.rustup.rs' -sSf | sh
+  - rustup target add "$TARGET"
+  - if [ "$TARGET" = 'arm-unknown-linux-gnueabihf']; then printf '[target.%s]\nlinker=%s\n' "$TARGET" 'arm-linux-gnueabihf-gcc' >> "$HOME/.cargo/config"; fi
 
 script:
   - cargo build --verbose --target="$TARGET"
