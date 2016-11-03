@@ -1,13 +1,12 @@
 language: rust
 
 matrix:
-  include:
-    - os: linux
-      rust: stable
-      env: TARGET=arm-unknown-linux-gnueabihf
-    - os: linux
-      rust: stable
-      env: TARGET=x86_64-unknown-linux-gnu
+  - os: linux
+    rust: stable
+    env: TARGET=arm-unknown-linux-gnueabihf
+  - os: linux
+    rust: stable
+    env: TARGET=x86_64-unknown-linux-gnu
 
 rust: stable
 
@@ -17,7 +16,7 @@ addons:
       - gcc-arm-linux-gnueabihf
 
 before_install:
-  - rustup target add "$TARGET"
+  - sh ~/rust-installer/rustup.sh --prefix=~/rust -y --disable-sudo target add "$TARGET"
 
 script:
   - cargo build --verbose --target="$TARGET"
