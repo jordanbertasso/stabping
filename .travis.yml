@@ -17,7 +17,7 @@ matrix:
 
 before_install:
   - export PATH="$PATH:$HOME/.cargo/bin"
-  - curl 'https://sh.rustup.rs' -sSf | sh
+  - curl 'https://sh.rustup.rs' -sSf | sh -s -- -y
   - rustup target add "$TARGET"
   - if [ "$TARGET" = 'arm-unknown-linux-gnueabihf']; then printf '[target.%s]\nlinker=%s\n' "$TARGET" 'arm-linux-gnueabihf-gcc' >> "$HOME/.cargo/config"; fi
 
