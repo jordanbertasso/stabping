@@ -4,7 +4,7 @@ matrix:
   include:
     - os: linux
       rust: stable
-      env: TARGET=arm-unknown-linux-gnueabihf
+      env: TARGET=arm-unknown-linux-gnueabihf TARGET_LINKER=arm-linux-gnueabihf-gcc SKIP_TEST=y
       addons:
         apt:
           packages:
@@ -13,16 +13,16 @@ matrix:
             - libc6-dev-armhf-cross
     - os: linux
       rust: stable
-      env: TARGET=x86_64-unknown-linux-gnu
+      env: TARGET=x86_64-unknown-linux-gnu IS_HOST=y
 
 before_install:
   - export PATH="$HOME/.cargo/bin:$PATH"
   - curl 'https://sh.rustup.rs' -sSf | sh -s -- -y
-  - if [ "$TARGET" != 'x86_64-unknown-linux-gnu' ]; then rustup target add "$TARGET"; fi
-  - if [ "$TARGET" = 'arm-unknown-linux-gnueabihf' ]; then printf '\n[target.%s]\nlinker = "%s"\n' "$TARGET" 'arm-linux-gnueabihf-gcc' >> "$HOME/.cargo/config"; fi
+  - if [ -z "$IS_HOST" ]; then rustup target add "$TARGET"; fi
+  - if [ ! -z "$TARGET_LINKER" ]; then printf '\n[target.%s]\nlinker = "%s"\n' "$TARGET" "$TARGET_LINKER" >> "$HOME/.cargo/config"; fi
   - if [ -f "$HOME/.cargo/config" ]; then cat "$HOME/.cargo/config"; fi
 
 script:
   - export PATH="$HOME/.cargo/bin:$PATH"
   - cargo build --verbose --target="$TARGET"
-  - cargo test --verbose --target="$TARGET"
+  - if [ -z "$SKIP_TEST" ]; then cargo test --verbose --target="$TARGET"; fi
