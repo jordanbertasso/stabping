@@ -11,21 +11,21 @@ use chrono::TimeZone;
 
 use std::net::TcpStream;
 
-struct WorkerOptions {
-    addresses: Vec<String>,
+struct TcpPingOptions {
+    addresses: Vec<String>,  // Vec of addresses to ping
     interval: u32,  // in millis
-    avg_across: u32,
+    avg_across: u32,  // number of pings to send for each interval (and then take average)
     pause: u32,  // in millis
 }
 
-struct ResultPackage {
-    time: u32,  // seconds from epoch
-    data: Vec<u32>
+struct TcpPingResults {
+    time: u32,  // seconds from epoch timestamp
+    data: Vec<u32>,  // resulting latencies for each address in micro seconds
 }
 
-fn run_workers(initial_options: WorkerOptions,
-               options_in: Receiver<WorkerOptions>,
-               results_out: Sender<ResultPackage>) {
+fn run_tcpping_workers(initial_options: TcpPingOptions,
+                       options_in: Receiver<TcpPingOptions>,
+                       results_out: Sender<TcpPingResults>) {
     thread::spawn(move || {
         let mut options = initial_options;
         let mut dur_interval = Duration::from_millis(options.interval as u64);
@@ -85,7 +85,7 @@ fn run_workers(initial_options: WorkerOptions,
                 }
             }
 
-            if results_out.send(ResultPackage {time: timestamp, data: data}).is_err() {
+            if results_out.send(TcpPingResults {time: timestamp, data: data}).is_err() {
                 println!("Worker Control: failed to send final results back.");
             }
         }
@@ -101,7 +101,7 @@ fn main() {
                                 "8.8.8.8:53".to_owned()];
     let addresses = master_addresses.clone();
 
-    run_workers(WorkerOptions {
+    run_tcpping_workers(TcpPingOptions {
         addresses: master_addresses,
         interval: 3000,
         avg_across: 3,
