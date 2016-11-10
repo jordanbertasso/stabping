@@ -4,7 +4,5 @@ version = "0.1.0"
 authors = ["icasdri <icasdri@gmail.com>"]
 
 [dependencies]
-
-
-[target.arm-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"
+time = "0.1"
+chrono = "0.2"
