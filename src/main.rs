@@ -3,7 +3,6 @@ extern crate time;
 
 use std::thread;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::RwLock;
 
 use std::time::Duration;
 use time::precise_time_ns;
@@ -49,21 +48,27 @@ fn run_workers(initial_options: WorkerOptions,
                     for _ in 0..avg_across {
                         let start = precise_time_ns();
                         if TcpStream::connect(a.as_str()).is_ok() {
-                            sum += (precise_time_ns() - start);
+                            sum += precise_time_ns() - start;
                             denom += 1;
                         }
                         thread::sleep(dur_pause);
                     }
 
                     if denom != 0 {
-                        // sends back microseconds
-                        tx.send((sum / denom / 1000) as u32);
+                        /*
+                         * send back micro-second average.
+                         *
+                         * we don't care if send fails as that likely means
+                         * we took too long and the control thread is no longer
+                         * waiting for us
+                         */
+                        let _ = tx.send((sum / denom / 1000) as u32);
                     }
                 });
             }
             thread::sleep(dur_interval);
 
-            let mut result: Vec<u32> = Vec::new();
+            let mut result: Vec<u32> = Vec::with_capacity(options.addresses.len());
             for h in handles.drain(..) {
                 if let Ok(val) = h.try_recv() {
                     result.push(val);
@@ -73,14 +78,16 @@ fn run_workers(initial_options: WorkerOptions,
                 }
             }
 
-            results_out.send(result);
+            if results_out.send(result).is_err() {
+                println!("Worker Control: failed to send final results back.");
+            }
         }
     });
 }
 
 
 fn main() {
-    let (options_tx, options_rx) = channel();
+    let (_, options_rx) = channel();
     let (results_tx, results_rx) = channel();
 
     let master_addresses = vec!["google.com:80".to_owned(),
