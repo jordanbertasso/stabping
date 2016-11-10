@@ -18,22 +18,22 @@ struct WorkerOptions {
     pause: u32,  // in millis
 }
 
-fn run_workers(options_in: Receiver<WorkerOptions>, results_out: Sender<Vec<u32>>) {
+fn run_workers(initial_options: WorkerOptions,
+               options_in: Receiver<WorkerOptions>,
+               results_out: Sender<Vec<u32>>) {
     thread::spawn(move || {
-        let mut options = WorkerOptions {
-            addresses: Vec::new(),
-            interval: 10000,
-            avg_across: 3,
-            pause: 100,
-        };
+        let mut options = initial_options;
+        let mut dur_interval = Duration::from_millis(options.interval as u64);
+        let mut dur_pause = Duration::from_millis(options.pause as u64);
 
         loop {
             if let Ok(new_options) = options_in.try_recv() {
                 options = new_options;
+                dur_interval = Duration::from_millis(options.interval as u64);
+                dur_pause = Duration::from_millis(options.pause as u64);
             }
 
             let avg_across = options.avg_across;
-            let pause_dur = Duration::from_millis(options.pause as u64);
 
             let mut handles = Vec::new();
 
@@ -52,15 +52,16 @@ fn run_workers(options_in: Receiver<WorkerOptions>, results_out: Sender<Vec<u32>
                             sum += (precise_time_ns() - start);
                             denom += 1;
                         }
-                        thread::sleep(pause_dur);
+                        thread::sleep(dur_pause);
                     }
 
                     if denom != 0 {
-                        tx.send((sum / denom / 1000000) as u32);
+                        // sends back microseconds
+                        tx.send((sum / denom / 1000) as u32);
                     }
                 });
             }
-            thread::sleep(Duration::from_millis(options.interval as u64));
+            thread::sleep(dur_interval);
 
             let mut result: Vec<u32> = Vec::new();
             for h in handles.drain(..) {
@@ -86,18 +87,19 @@ fn main() {
                                 "8.8.8.8:53".to_owned()];
     let addresses = master_addresses.clone();
 
-    options_tx.send(WorkerOptions {
+    run_workers(WorkerOptions {
         addresses: master_addresses,
         interval: 3000,
         avg_across: 3,
         pause: 100,
-    });
-
-    run_workers(options_rx, results_tx);
+    }, options_rx, results_tx);
 
     for res in results_rx.iter() {
         for (addr, val) in addresses.iter().zip(res) {
-            println!("Connection to {} took {} ms.", addr, val);
+            // val comes in as micro seconds
+            let whole_ms = val / 1000;
+            let part_ms = (val % 1000) / 10;
+            println!("Connection to {} took {}.{} ms.", addr, whole_ms, part_ms);
         }
         println!("");
     }
