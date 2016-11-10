@@ -7,6 +7,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::Duration;
 use time::precise_time_ns;
 use chrono::Local;
+use chrono::TimeZone;
 
 use std::net::TcpStream;
 
@@ -17,13 +18,20 @@ struct WorkerOptions {
     pause: u32,  // in millis
 }
 
+struct ResultPackage {
+    time: u32,  // seconds from epoch
+    data: Vec<u32>
+}
+
 fn run_workers(initial_options: WorkerOptions,
                options_in: Receiver<WorkerOptions>,
-               results_out: Sender<Vec<u32>>) {
+               results_out: Sender<ResultPackage>) {
     thread::spawn(move || {
         let mut options = initial_options;
         let mut dur_interval = Duration::from_millis(options.interval as u64);
         let mut dur_pause = Duration::from_millis(options.pause as u64);
+
+        let mut handles = Vec::new();
 
         loop {
             if let Ok(new_options) = options_in.try_recv() {
@@ -33,8 +41,7 @@ fn run_workers(initial_options: WorkerOptions,
             }
 
             let avg_across = options.avg_across;
-
-            let mut handles = Vec::new();
+            let timestamp: u32 = Local::now().timestamp() as u32;
 
             for addr in options.addresses.iter() {
                 let a = addr.clone();
@@ -68,17 +75,17 @@ fn run_workers(initial_options: WorkerOptions,
             }
             thread::sleep(dur_interval);
 
-            let mut result: Vec<u32> = Vec::with_capacity(options.addresses.len());
+            let mut data: Vec<u32> = Vec::with_capacity(options.addresses.len());
             for h in handles.drain(..) {
                 if let Ok(val) = h.try_recv() {
-                    result.push(val);
+                    data.push(val);
                 } else {
                     // on error or timeout, hand back a gigantic sentinel value
-                    result.push(options.interval);
+                    data.push(options.interval);
                 }
             }
 
-            if results_out.send(result).is_err() {
+            if results_out.send(ResultPackage {time: timestamp, data: data}).is_err() {
                 println!("Worker Control: failed to send final results back.");
             }
         }
@@ -102,7 +109,8 @@ fn main() {
     }, options_rx, results_tx);
 
     for res in results_rx.iter() {
-        for (addr, val) in addresses.iter().zip(res) {
+        println!("{}", Local.timestamp(res.time as i64, 0));
+        for (addr, val) in addresses.iter().zip(res.data) {
             // val comes in as micro seconds
             let whole_ms = val / 1000;
             let part_ms = (val % 1000) / 10;
