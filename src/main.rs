@@ -1,33 +1,28 @@
 extern crate chrono;
 extern crate time;
 
+extern crate ws;
+
 extern crate iron;
 extern crate router;
 extern crate mount;
 extern crate staticfile;
 
+mod webserver;
+mod wsserver;
 mod tcpping;
 
-use std::path::Path;
-
-use iron::prelude::{Request, Response, Chain, Iron, IronResult};
-use iron::status;
-use router::Router;
-use mount::Mount;
-use staticfile::Static;
+use std::thread;
+use std::time::Duration;
 
 fn main() {
-    fn hello_handler(req: &mut Request) -> IronResult<Response> {
-        Ok(Response::with((status::Ok, "Hello World!")))
+    let web_thread = webserver::web_server("localhost:5001".to_owned());
+    let ws_broadcast = wsserver::ws_server("localhost:5002".to_owned());
+
+    for i in 0..10 {
+        thread::sleep(Duration::from_secs(1));
+        ws_broadcast.send("Hey!");
     }
 
-    let mut router = Router::new();
-    router.get("/", Static::new(Path::new("client/index.html")), "index");
-    router.get("/hello", hello_handler, "hello");
-
-    let mut mount = Mount::new();
-    mount.mount("/", router);
-    mount.mount("/assets/", Static::new(Path::new("client/")));
-
-    Iron::new(mount).http("localhost:5001").unwrap();
+    web_thread.join();
 }
