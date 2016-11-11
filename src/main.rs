@@ -2,7 +2,8 @@ extern crate chrono;
 extern crate time;
 
 extern crate iron;
-#[macro_use(router)] extern crate router;
+extern crate router;
+extern crate mount;
 extern crate staticfile;
 
 mod tcpping;
@@ -12,6 +13,7 @@ use std::path::Path;
 use iron::prelude::{Request, Response, Chain, Iron, IronResult};
 use iron::status;
 use router::Router;
+use mount::Mount;
 use staticfile::Static;
 
 fn main() {
@@ -19,7 +21,13 @@ fn main() {
         Ok(Response::with((status::Ok, "Hello World!")))
     }
 
-    let router = router!(index: get "/" => Static::new(Path::new("client/index.html")),
-                         hello: get "/hello" => hello_handler);
-    Iron::new(router).http("localhost:5001").unwrap();
+    let mut router = Router::new();
+    router.get("/", Static::new(Path::new("client/index.html")), "index");
+    router.get("/hello", hello_handler, "hello");
+
+    let mut mount = Mount::new();
+    mount.mount("/", router);
+    mount.mount("/assets/", Static::new(Path::new("client/")));
+
+    Iron::new(mount).http("localhost:5001").unwrap();
 }
