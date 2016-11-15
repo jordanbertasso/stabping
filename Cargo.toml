@@ -2,6 +2,7 @@
 name = "stabping"
 version = "0.1.0"
 authors = ["icasdri <icasdri@gmail.com>"]
+build = "build.rs"
 
 [dependencies]
 time = "0.1"

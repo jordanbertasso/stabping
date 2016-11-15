@@ -1,4 +1,3 @@
-
 var socket = new WebSocket("ws://localhost:5002");
 socket.onmessage = function(message) {
     var e = document.createElement("p");
