@@ -13,15 +13,20 @@ mod tcpping;
 
 use std::thread;
 use std::time::Duration;
+use std::sync::Arc;
+
+use wsserver::Broadcaster;
 
 fn main() {
+    let broadcaster = Arc::new(Broadcaster::new());
+
     let web_thread = webserver::web_server("localhost:5001".to_owned());
-    let ws_broadcast = wsserver::ws_server("localhost:5002".to_owned());
+    let ws_thread = wsserver::ws_server("localhost:5002".to_owned(), broadcaster.clone());
 
     for i in 0..10 {
         thread::sleep(Duration::from_secs(1));
-        ws_broadcast.send("Hey!");
+        broadcaster.send("Hey!");
     }
 
-    web_thread.join();
+    ws_thread.join();
 }
