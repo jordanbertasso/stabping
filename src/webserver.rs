@@ -10,7 +10,6 @@ use iron::modifiers::Header;
 use iron::status;
 use router::Router;
 use mount::Mount;
-use staticfile::Static;
 
 #[derive(Debug)]
 struct NotFoundError;

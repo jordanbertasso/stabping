@@ -6,7 +6,6 @@ extern crate ws;
 extern crate iron;
 extern crate router;
 extern crate mount;
-extern crate staticfile;
 
 mod webserver;
 mod wsserver;
