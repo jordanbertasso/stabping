@@ -8,9 +8,9 @@ pub struct TargetOptions {
     pub pause: u32,  // pause between sub-attempts, in millis
 }
 
-struct TargetResults {
-    time: u32,  // seconds from epoch timestamp
-    data: Vec<u32>,  // data for each address (encoding specific to target type)
+pub struct TargetResults {
+    pub time: u32,  // seconds from epoch timestamp
+    pub data: Vec<u32>,  // data for each address (encoding specific to target type)
 }
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]
