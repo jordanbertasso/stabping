@@ -2,6 +2,8 @@ use std::thread;
 use std::path::Path;
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use iron::prelude::{Request, Response, Chain, Iron, IronResult, IronError};
 use iron::headers::ContentType;
@@ -10,6 +12,8 @@ use iron::modifiers::Header;
 use iron::status;
 use router::Router;
 use mount::Mount;
+
+use options::{TargetOptions, SPOptions, MainConfiguration};
 
 #[derive(Debug)]
 struct NotFoundError;
@@ -45,7 +49,8 @@ fn webassets_handler(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-pub fn web_server(addr: String) -> thread::JoinHandle<()> {
+pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
+                  _: Arc<RwLock<SPOptions>>) -> thread::JoinHandle<()> {
     fn hello_handler(req: &mut Request) -> IronResult<Response> {
         Ok(Response::with((status::Ok, "Hello World!")))
     }
@@ -61,6 +66,6 @@ pub fn web_server(addr: String) -> thread::JoinHandle<()> {
     let iron = Iron::new(mount);
 
     thread::spawn(move || {
-        iron.http(addr.as_str()).unwrap();
+        iron.http(configuration.read().unwrap().web_listen.as_str()).unwrap();
     })
 }

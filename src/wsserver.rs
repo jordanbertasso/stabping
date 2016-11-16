@@ -1,10 +1,12 @@
 use std::thread;
 use std::net::ToSocketAddrs;
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use ws;
 use ws::{Builder, Factory, Handler, Settings, WebSocket};
+
+use options::{TargetOptions, SPOptions, MainConfiguration};
 
 struct ServerHandler {
     out: ws::Sender,
@@ -74,13 +76,15 @@ fn get_socket() -> ws::WebSocket<ServerFactory> {
     builder.build(ServerFactory::new()).unwrap()
 }
 
-pub fn ws_server(addr: String, broadcaster: Arc<Broadcaster>) -> thread::JoinHandle<()> {
+pub fn ws_server(configuration: Arc<RwLock<MainConfiguration>>,
+                 _: Arc<RwLock<SPOptions>>,
+                 broadcaster: Arc<Broadcaster>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         loop {
             let socket = get_socket();
             broadcaster.update(socket.broadcaster());
             println!("New WebSocket created to accept connections");
-            socket.listen(addr.as_str());
+            socket.listen(configuration.read().unwrap().ws_listen.as_str());
         }
     })
 }
