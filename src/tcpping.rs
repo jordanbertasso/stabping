@@ -11,8 +11,8 @@ use std::net::TcpStream;
 
 use options::{TargetOptions, TargetResults, SPOptions, MainConfiguration};
 
-fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
-                       results_out: Sender<TargetResults>) {
+pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
+                       results_out: Sender<TargetResults>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut handles = Vec::new();
 
@@ -75,6 +75,6 @@ fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
                 println!("Worker Control: failed to send final results back.");
             }
         }
-    });
+    })
 }
 
