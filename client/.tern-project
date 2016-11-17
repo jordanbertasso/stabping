@@ -1,0 +1,10 @@
+{
+    "libs": [
+        "browser",
+        "dygraphs",
+        "vue"
+    ],
+    "plugins": {
+        "node": {}
+    }
+}
