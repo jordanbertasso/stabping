@@ -60,7 +60,10 @@ pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
             }
             thread::sleep(dur_interval);
 
-            let mut data: Vec<u32> = Vec::with_capacity(num_addrs);
+            let mut data: Vec<u32> = Vec::with_capacity(1 + num_addrs);
+
+            data.push(timestamp);
+
             for h in handles.drain(..) {
                 if let Ok(val) = h.try_recv() {
                     data.push(val);
@@ -70,7 +73,7 @@ pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
                 }
             }
 
-            if results_out.send(TargetResults {time: timestamp, data: data}).is_err() {
+            if results_out.send(TargetResults {data: data}).is_err() {
                 println!("Worker Control: failed to send final results back.");
             }
         }

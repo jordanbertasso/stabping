@@ -7,8 +7,14 @@ pub struct TargetOptions {
 }
 
 pub struct TargetResults {
-    pub time: u32,  // seconds from epoch timestamp
-    pub data: Vec<u32>,  // data for each address (encoding specific to target type)
+    /*
+     * Data for each address. Structured as:
+     * [timestamp, datapoint1, datapoint2, ...]
+     * where timestamp is in seconds from epoch,
+     * and each datapoint is for each address in TargetOptions.addrs
+     * (encoding of data inside the u32 is target-defined)
+     */
+    pub data: Vec<u32>,
 }
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]
