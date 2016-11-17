@@ -1,63 +1,104 @@
-function date_formatter(epoch_seconds) {
-    return Dygraph.dateString_(epoch_seconds * 1000);
+function dateFormatter(epochSeconds) {
+    return Dygraph.dateString_(epochSeconds * 1000);
 }
 
-function tcpping_value_formatter(val, opts, seriesName) {
-    if (seriesName == "Time") {
-        return date_formatter(val);
-    } else {
-        return (val / 1000).toFixed() + " ms";
-    }
-}
+function TargetGraph(divId, valFormatter) {
+    var gvFormatter = function(val, opts, seriesName) {
+        if (seriesName == "Time") {
+            return dateFormatter(val);
+        } else {
+            return valFormatter(val);
+        }
+    };
 
-var tcpping_graph = new Dygraph(
-    document.getElementById("tcpping_graph"),
-    [[0]],
-    {
-        valueFormatter: tcpping_value_formatter,
-        axes: {
-            x: {
-                axisLabelFormatter: date_formatter
-            },
-            y: {
-                axisLabelFormatter: tcpping_value_formatter
+    this.graph = new Dygraph(
+        document.getElementById(divId),
+        [[0]],
+        {
+            valueFormatter: gvFormatter,
+            axes: {
+                x: {
+                    axisLabelFormatter: dateFormatter
+                },
+                y: {
+                    axisLabelFormatter: gvFormatter
+                }
             }
         }
-    }
-);
+    );
 
-var tcpping_data = null;
+    this.data = null;
+    this.labels = ["Time"];
+}
 
-function tcpping_data_update(buf) {
-    if (tcpping_data == null) {
-        tcpping_data = [];
+TargetGraph.prototype.update = function(buf) {
+    if (!this.data) {
+        this.data = [];
     }
 
     var new_data = new Uint32Array(buf);
-    tcpping_data.push(new_data);
+    this.data.push(new_data);
 
-    tcpping_graph.updateOptions({
-        file: tcpping_data
+    this.graph.updateOptions({
+        file: this.data
     });
 }
 
-var options_req = new XMLHttpRequest();
-options_req.responseType = "json";
-options_req.open("GET", "/api/options", true);
-options_req.onreadystatechange = function() {
-    if (options_req.readyState == 4 &&
-        options_req.status == 200) {
-        var options = options_req.response;
-        console.log("Fetched option from /api/options.");
-        tcpping_graph.updateOptions({
-            labels: ["Time"].concat(options.tcpping_options.addrs)
-        });
-    }
+TargetGraph.prototype.setSeriesLabels = function(labels) {
+    this.labels.length = 1;
+    this.labels.push.apply(this.labels, labels);
+    this.graph.updateOptions({
+        labels: this.labels
+    });
 }
-options_req.send();
 
-var socket = new WebSocket("ws://localhost:5002");
-socket.binaryType = "arraybuffer";
-socket.onmessage = function(message) {
-    tcpping_data_update(message.data);
+
+function SPSocket(addr, cb, interval) {
+    if (!interval) {
+        interval = 20000;
+    }
+
+    this.socket = this.newSocket(addr, cb);
+
+    setInterval(function() {
+        if (this.socket.readyState > 1) {
+            this.socket = this.newSocket(addr, cb);
+        }
+    }.bind(this), interval);
 }
+
+SPSocket.prototype.newSocket = function(addr, cb) {
+    var socket = new WebSocket(addr);
+    socket.binaryType = "arraybuffer";
+    socket.onmessage = cb;
+    return socket;
+}
+
+function ajax(method, dest, type, cb) {
+    var req = new XMLHttpRequest();
+    req.responseType = type;
+    req.open(method, dest, true);
+    req.onreadystatechange = function() {
+        if (req.readyState == 4 && req.status == 200) {
+            cb(req.response);
+        }
+    }
+    req.send();
+}
+
+var graphs = [
+    new TargetGraph("tcpping_graph",
+        function(val) {
+            return (val / 1000).toFixed() + " ms";
+        }
+    )
+]
+
+ajax("GET", "/api/options", "json", function(res) {
+    console.log("Fetched option from /api/options.");
+    graphs[0].setSeriesLabels(res.tcpping_options.addrs);
+});
+
+new SPSocket("ws://localhost:5002", function(message) {
+    graphs[0].update(message.data);
+});
