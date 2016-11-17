@@ -6,6 +6,8 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use iron::prelude::{Request, Response, Chain, Iron, IronResult, IronError};
+use iron::middleware::Handler;
+use iron::method::Method;
 use iron::headers::ContentType;
 use iron::mime::Mime;
 use iron::modifiers::Header;
@@ -13,17 +15,28 @@ use iron::status;
 use router::Router;
 use mount::Mount;
 
+use rustc_serialize::json;
+
 use options::{TargetOptions, SPOptions, MainConfiguration};
 
 #[derive(Debug)]
-struct NotFoundError;
+enum SPWebError {
+    NotFound,
+    InvalidMethod,
+    NotImplemented,
+}
 
-impl Error for NotFoundError {
+impl Error for SPWebError {
     fn description(&self) -> &str {
-        "Not found."
+        match *self {
+            SPWebError::NotFound => "Resource not found.",
+            SPWebError::InvalidMethod => "Invalid method.",
+            SPWebError::NotImplemented => "Handler not yet implemented.",
+        }
     }
 }
-impl fmt::Display for NotFoundError {
+
+impl fmt::Display for SPWebError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.description())
     }
@@ -45,12 +58,43 @@ fn webassets_handler(req: &mut Request) -> IronResult<Response> {
     match _webassets_handler_body(path) {
         Some((s, ct)) => Ok(Response::with(
                 (status::Ok, Header(ContentType(ct.parse().unwrap())), s))),
-        None => Err(IronError::new(NotFoundError, status::NotFound))
+        None => Err(IronError::new(SPWebError::NotFound, status::NotFound))
+    }
+}
+
+struct OptionsHandler {
+    options: Arc<RwLock<SPOptions>>,
+}
+
+impl OptionsHandler {
+    fn new(options: Arc<RwLock<SPOptions>>) -> Self {
+        OptionsHandler {
+            options: options,
+        }
+    }
+}
+
+impl Handler for OptionsHandler {
+    fn handle(&self, req: &mut Request) -> IronResult<Response> {
+        match req.method {
+            Method::Get => {
+                let options_ser = {
+                    let options = self.options.read().unwrap();
+                    json::encode(&*options).unwrap()
+                };
+                Ok(Response::with((status::Ok, options_ser)))
+            },
+            Method::Post => {
+                // TODO
+                Err(IronError::new(SPWebError::NotImplemented, status::NotImplemented))
+            },
+            _ => Err(IronError::new(SPWebError::InvalidMethod, status::MethodNotAllowed))
+        }
     }
 }
 
 pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
-                  _: Arc<RwLock<SPOptions>>) -> thread::JoinHandle<()> {
+                  options: Arc<RwLock<SPOptions>>) -> thread::JoinHandle<()> {
     fn hello_handler(req: &mut Request) -> IronResult<Response> {
         Ok(Response::with((status::Ok, "Hello World!")))
     }
@@ -58,6 +102,7 @@ pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
     let mut router = Router::new();
     router.get("/", webassets_handler, "index");
     router.get("/hello", hello_handler, "hello");
+    router.any("/api/options", OptionsHandler::new(options.clone()), "api_options");
 
     let mut mount = Mount::new();
     mount.mount("/", router);
