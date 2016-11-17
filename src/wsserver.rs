@@ -13,7 +13,6 @@ struct ServerHandler {
 impl Handler for ServerHandler {
     fn on_open(&mut self, _: Handshake) -> ws::Result<()> {
         println!("Websocket connection opened.");
-        let _ = self.out.send("Hello World!");
         Ok(())
     }
 }

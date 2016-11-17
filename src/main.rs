@@ -13,6 +13,7 @@ mod webserver;
 mod wsserver;
 mod tcpping;
 
+use std::mem;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::mpsc::channel;
@@ -39,14 +40,20 @@ fn main() {
     let tcpping_thread = tcpping::run_tcpping_workers(options.clone(), tcpping_sender.clone());
 
     for r in tcpping_results {
-        let mut result_string = format!("{}<br>", Local.timestamp(*r.data.first().unwrap() as i64, 0));
-        for (addr, val) in options.read().unwrap().tcpping_options.addrs.iter().zip(&r.data[1..]) {
-            let whole_ms = val / 1000;
-            let part_ms = (val % 1000) / 10;
-            result_string.push_str(format!("TCP connection to '{}' took {}.{}ms.<br>",
-                                           addr, whole_ms, part_ms).as_str());
-        }
-        result_string.push_str("<br>");
-        let _ = broadcaster.send(result_string);
+        let mut orig_data: Vec<u32> = r.data;
+
+        let new_raw_data: Vec<u8> = {
+            let raw_data_ptr = orig_data.as_mut_ptr();
+            let new_len = orig_data.len() * mem::size_of::<u32>();
+            let new_cap = orig_data.capacity() * mem::size_of::<u32>();
+
+            unsafe {
+                // take full control over memory originally controlled by orig_data
+                mem::forget(orig_data);
+                Vec::from_raw_parts(raw_data_ptr as *mut u8, new_len, new_cap)
+            }
+        };
+
+        let _ = broadcaster.send(new_raw_data);
     }
 }
