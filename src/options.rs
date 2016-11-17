@@ -1,5 +1,3 @@
-use rustc_serialize;
-
 #[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct TargetOptions {
     pub addrs: Vec<String>,  // Vec of addresses (IPs to hit with TCP, files to download, etc.)

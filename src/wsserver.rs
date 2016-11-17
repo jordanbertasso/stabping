@@ -1,21 +1,19 @@
 use std::thread;
-use std::net::ToSocketAddrs;
-use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};
 
 use ws;
-use ws::{Builder, Factory, Handler, Settings, WebSocket};
+use ws::{Factory, Handler, Settings, Builder, WebSocket, Handshake};
 
-use options::{TargetOptions, SPOptions, MainConfiguration};
+use options::{SPOptions, MainConfiguration};
 
 struct ServerHandler {
     out: ws::Sender,
 }
 
-impl ws::Handler for ServerHandler {
-    fn on_open(&mut self, shake: ws::Handshake) -> ws::Result<()> {
+impl Handler for ServerHandler {
+    fn on_open(&mut self, _: Handshake) -> ws::Result<()> {
         println!("Websocket connection opened.");
-        self.out.send("Hello World!");
+        let _ = self.out.send("Hello World!");
         Ok(())
     }
 }
@@ -28,7 +26,7 @@ impl ServerFactory {
     }
 }
 
-impl ws::Factory for ServerFactory {
+impl Factory for ServerFactory {
     type Handler = ServerHandler;
 
     fn connection_made(&mut self, sender: ws::Sender) -> ServerHandler {
@@ -39,7 +37,7 @@ impl ws::Factory for ServerFactory {
 }
 
 
-enum BroadcastError {
+pub enum BroadcastError {
     SocketNotAvail,
     WebSocketError(ws::Error)
 }
@@ -70,7 +68,7 @@ impl Broadcaster {
     }
 }
 
-fn get_socket() -> ws::WebSocket<ServerFactory> {
+fn get_socket() -> WebSocket<ServerFactory> {
     let mut builder = Builder::new();
     builder.with_settings(Settings::default());
     builder.build(ServerFactory::new()).unwrap()
@@ -84,7 +82,8 @@ pub fn ws_server(configuration: Arc<RwLock<MainConfiguration>>,
             let socket = get_socket();
             broadcaster.update(socket.broadcaster());
             println!("New WebSocket created to accept connections");
-            socket.listen(configuration.read().unwrap().ws_listen.as_str());
+            socket.listen(configuration.read().unwrap().ws_listen.as_str())
+                .expect("Unable to listen on websocket.");
         }
     })
 }

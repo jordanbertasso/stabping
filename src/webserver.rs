@@ -1,15 +1,13 @@
 use std::thread;
-use std::path::Path;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use iron::prelude::{Request, Response, Chain, Iron, IronResult, IronError};
+use iron::prelude::{Request, Response, Iron, IronResult, IronError};
 use iron::middleware::Handler;
 use iron::method::Method;
 use iron::headers::ContentType;
-use iron::mime::Mime;
 use iron::modifiers::Header;
 use iron::status;
 use router::Router;
@@ -17,7 +15,7 @@ use mount::Mount;
 
 use rustc_serialize::json;
 
-use options::{TargetOptions, SPOptions, MainConfiguration};
+use options::{SPOptions, MainConfiguration};
 
 #[derive(Debug)]
 enum SPWebError {
@@ -95,7 +93,7 @@ impl Handler for OptionsHandler {
 
 pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
                   options: Arc<RwLock<SPOptions>>) -> thread::JoinHandle<()> {
-    fn hello_handler(req: &mut Request) -> IronResult<Response> {
+    fn hello_handler(_: &mut Request) -> IronResult<Response> {
         Ok(Response::with((status::Ok, "Hello World!")))
     }
 

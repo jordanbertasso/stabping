@@ -13,19 +13,15 @@ mod webserver;
 mod wsserver;
 mod tcpping;
 
-use std::thread;
-use std::time::Duration;
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::sync::mpsc::{channel, Receiver, Sender};
-
-use rustc_serialize::json;
+use std::sync::mpsc::channel;
 
 use chrono::{Local, TimeZone};
 
 use wsserver::Broadcaster;
 
-use options::{TargetOptions, SPOptions, MainConfiguration};
+use options::{SPOptions, MainConfiguration};
 
 fn main() {
     let configuration = Arc::new(RwLock::new(MainConfiguration::default()));
@@ -51,6 +47,6 @@ fn main() {
                                            addr, whole_ms, part_ms).as_str());
         }
         result_string.push_str("<br>");
-        broadcaster.send(result_string);
+        let _ = broadcaster.send(result_string);
     }
 }

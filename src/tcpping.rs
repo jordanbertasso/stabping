@@ -1,15 +1,14 @@
 use std::thread;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, RwLock};
 
 use std::time::Duration;
 use time::precise_time_ns;
 use chrono::Local;
-use chrono::TimeZone;
 
 use std::net::TcpStream;
 
-use options::{TargetOptions, TargetResults, SPOptions, MainConfiguration};
+use options::{TargetResults, SPOptions};
 
 pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
                        results_out: Sender<TargetResults>) -> thread::JoinHandle<()> {
