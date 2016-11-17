@@ -1,6 +1,10 @@
 const SENTINEL_ERROR = -2100000000;
 const SENTINEL_NODATA = -2000000000;
 
+function dateAxisFormatter(epochSeconds, gran, opts) {
+    return Dygraph.dateAxisLabelFormatter(new Date(epochSeconds * 1000), gran, opts);
+}
+
 function dateFormatter(epochSeconds) {
     return Dygraph.dateString_(epochSeconds * 1000);
 }
@@ -28,7 +32,7 @@ function TargetGraph(divId, valFormatter) {
             valueRange: this.valRange,
             axes: {
                 x: {
-                    axisLabelFormatter: dateFormatter
+                    axisLabelFormatter: dateAxisFormatter
                 },
                 y: {
                     axisLabelFormatter: gvFormatter
