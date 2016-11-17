@@ -6,15 +6,19 @@ pub struct TargetOptions {
     pub pause: u32,  // pause between sub-attempts, in millis
 }
 
+pub static SENTINEL_ERROR: i32 = -2_100_000_000;
+pub static SENTINEL_NODATA: i32 = -2_000_000_000;
+
 pub struct TargetResults {
     /*
      * Data for each address. Structured as:
      * [timestamp, datapoint1, datapoint2, ...]
      * where timestamp is in seconds from epoch,
      * and each datapoint is for each address in TargetOptions.addrs
-     * (encoding of data inside the u32 is target-defined)
+     * (encoding of data inside the i32 is target-defined, or one of the
+     * sentinel values for error or nodata)
      */
-    pub data: Vec<u32>,
+    pub data: Vec<i32>,
 }
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]

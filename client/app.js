@@ -1,3 +1,6 @@
+const SENTINEL_ERROR = -2100000000;
+const SENTINEL_NODATA = -2000000000;
+
 function dateFormatter(epochSeconds) {
     return Dygraph.dateString_(epochSeconds * 1000);
 }
@@ -6,16 +9,23 @@ function TargetGraph(divId, valFormatter) {
     var gvFormatter = function(val, opts, seriesName) {
         if (seriesName == "Time") {
             return dateFormatter(val);
+        } else if (val == SENTINEL_ERROR) {
+            return "Error/timeout";
+        } else if (val == SENTINEL_NODATA) {
+            return "No Data";
         } else {
             return valFormatter(val);
         }
     };
+
+    this.valRange = [0, null];
 
     this.graph = new Dygraph(
         document.getElementById(divId),
         [[0]],
         {
             valueFormatter: gvFormatter,
+            valueRange: this.valRange,
             axes: {
                 x: {
                     axisLabelFormatter: dateFormatter
@@ -36,10 +46,20 @@ TargetGraph.prototype.update = function(buf) {
         this.data = [];
     }
 
-    var new_data = new Uint32Array(buf);
+    var new_data = new Int32Array(buf);
     this.data.push(new_data);
 
+    var curMax = this.valRange[1];
+    for (var i = 1; i < new_data.length; i++) {
+        if (new_data[i] > curMax) {
+            curMax = new_data[i];
+        }
+    }
+    this.valRange[1] = curMax;
+    console.log(this.valRange);
+
     this.graph.updateOptions({
+        valueRange: this.valRange,
         file: this.data
     });
 }
@@ -62,6 +82,7 @@ function SPSocket(addr, cb, interval) {
 
     setInterval(function() {
         if (this.socket.readyState > 1) {
+            console.log("Reconnecting WebSocket...");
             this.socket = this.newSocket(addr, cb);
         }
     }.bind(this), interval);

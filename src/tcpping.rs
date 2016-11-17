@@ -8,6 +8,7 @@ use chrono::Local;
 
 use std::net::TcpStream;
 
+use options;
 use options::{TargetResults, SPOptions};
 
 pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
@@ -16,17 +17,16 @@ pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
         let mut handles = Vec::new();
 
         loop {
-            let (interval, dur_interval, avg_across, dur_pause, num_addrs) = {
+            let (dur_interval, avg_across, dur_pause, num_addrs) = {
                 let ref opt = options.read().unwrap().tcpping_options;
                 (
-                    opt.interval,
                     Duration::from_millis(opt.interval as u64),
                     opt.avg_across,
                     Duration::from_millis(opt.pause as u64),
                     opt.addrs.len(),
                 )
             };
-            let timestamp: u32 = Local::now().timestamp() as u32;
+            let timestamp: i32 = Local::now().timestamp() as i32;
 
             for addr in options.read().unwrap().tcpping_options.addrs.iter() {
                 let a = addr.clone();
@@ -54,13 +54,13 @@ pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
                          * we took too long and the control thread is no longer
                          * waiting for us
                          */
-                        let _ = tx.send((sum / denom / 1000) as u32);
+                        let _ = tx.send((sum / denom / 1000) as i32);
                     }
                 });
             }
             thread::sleep(dur_interval);
 
-            let mut data: Vec<u32> = Vec::with_capacity(1 + num_addrs);
+            let mut data: Vec<i32> = Vec::with_capacity(1 + num_addrs);
 
             data.push(timestamp);
 
@@ -68,8 +68,8 @@ pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
                 if let Ok(val) = h.try_recv() {
                     data.push(val);
                 } else {
-                    // on error or timeout, hand back a gigantic sentinel value
-                    data.push(interval);
+                    // on error or timeout, hand back a sentinel value
+                    data.push(options::SENTINEL_ERROR);
                 }
             }
 

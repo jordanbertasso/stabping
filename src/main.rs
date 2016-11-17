@@ -18,8 +18,6 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::mpsc::channel;
 
-use chrono::{Local, TimeZone};
-
 use wsserver::Broadcaster;
 
 use options::{SPOptions, MainConfiguration};
@@ -40,12 +38,12 @@ fn main() {
     let tcpping_thread = tcpping::run_tcpping_workers(options.clone(), tcpping_sender.clone());
 
     for r in tcpping_results {
-        let mut orig_data: Vec<u32> = r.data;
+        let mut orig_data: Vec<i32> = r.data;
 
         let new_raw_data: Vec<u8> = {
             let raw_data_ptr = orig_data.as_mut_ptr();
-            let new_len = orig_data.len() * mem::size_of::<u32>();
-            let new_cap = orig_data.capacity() * mem::size_of::<u32>();
+            let new_len = orig_data.len() * mem::size_of::<i32>();
+            let new_cap = orig_data.capacity() * mem::size_of::<i32>();
 
             unsafe {
                 // take full control over memory originally controlled by orig_data
