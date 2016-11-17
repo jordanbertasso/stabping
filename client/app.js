@@ -33,12 +33,27 @@ function TargetGraph(divId, valFormatter) {
                 y: {
                     axisLabelFormatter: gvFormatter
                 }
-            }
+            },
+            animatedZooms: true,
+            isZoomedIgnoreProgrammaticZoom: true,
+            zoomCallback: function (lowerDate, upperDate, yRanges) {
+                if (!this.graph.isZoomed()) {
+                    this._updateDrawnGraph();
+                }
+            }.bind(this)
         }
     );
 
     this.data = null;
     this.labels = ["Time"];
+}
+
+TargetGraph.prototype._updateDrawnGraph = function() {
+    this.graph.updateOptions({
+        isZoomedIgnoreProgrammaticZoom: true,
+        valueRange: this.valRange,
+        file: this.data
+    });
 }
 
 TargetGraph.prototype.update = function(buf) {
@@ -56,12 +71,10 @@ TargetGraph.prototype.update = function(buf) {
         }
     }
     this.valRange[1] = curMax;
-    console.log(this.valRange);
 
-    this.graph.updateOptions({
-        valueRange: this.valRange,
-        file: this.data
-    });
+    if (!this.graph.isZoomed()) {
+        this._updateDrawnGraph();
+    }
 }
 
 TargetGraph.prototype.setSeriesLabels = function(labels) {
