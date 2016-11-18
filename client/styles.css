@@ -1,3 +1,40 @@
-h1 {
-    color: red;
+@font-face{
+    font-family: 'Fira Sans';
+    src: local('Fira Sans UltraLight'),
+         url('/assets/FiraSans-UltraLight.woff') format('woff');
+    font-weight: 200;
+    font-style: normal;
+}
+
+@font-face{
+    font-family: 'Fira Sans';
+    src: local('Fira Sans Light'),
+         url('/assets/FiraSans-Light.woff') format('woff');
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face{
+    font-family: 'Fira Sans';
+    src: local('Fira Sans Regular'),
+         url('/assets/FiraSans-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face{
+    font-family: 'Fira Mono';
+    src: local('Fira Mono Regular'),
+         url('/assets/FiraMono-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+}
+
+body {
+    font-family: 'Fira Sans';
+}
+
+#tcpping_graph {
+    width: 700px;
+    height: 450px;
 }
