@@ -9,6 +9,7 @@ use iron::middleware::Handler;
 use iron::method::Method;
 use iron::headers::ContentType;
 use iron::modifiers::Header;
+use iron::response::WriteBody;
 use iron::status;
 use router::Router;
 use mount::Mount;
@@ -41,6 +42,11 @@ impl fmt::Display for SPWebError {
 }
 
 
+enum WebAssetContainer {
+    Binary(&'static [u8]),
+    Text(&'static str)
+}
+
 include!(concat!(env!("OUT_DIR"), "/webassets_handler_body.rs"));
 
 fn webassets_handler(req: &mut Request) -> IronResult<Response> {
@@ -54,8 +60,14 @@ fn webassets_handler(req: &mut Request) -> IronResult<Response> {
     };
 
     match _webassets_handler_body(path) {
-        Some((s, ct)) => Ok(Response::with(
-                (status::Ok, Header(ContentType(ct.parse().unwrap())), s))),
+        Some((asset, ct)) => {
+            let s = status::Ok;
+            let h = Header(ContentType(ct.parse().unwrap()));
+            Ok(match asset {
+                WebAssetContainer::Binary(b) => Response::with((s, h, b)),
+                WebAssetContainer::Text(t) => Response::with((s, h, t)),
+            })
+        },
         None => Err(IronError::new(SPWebError::NotFound, status::NotFound))
     }
 }

@@ -7,6 +7,10 @@ use std::process::Command;
 use std::process::ExitStatus;
 
 static ASSET_FILES: &'static [&'static str] = &[
+    "node_modules/mozilla-fira-pack/Fira/woff/FiraMono-Regular.woff",
+    "node_modules/mozilla-fira-pack/Fira/woff/FiraSans-Regular.woff",
+    "node_modules/mozilla-fira-pack/Fira/woff/FiraSans-Light.woff",
+    "node_modules/mozilla-fira-pack/Fira/woff/FiraSans-UltraLight.woff",
     "node_modules/dygraphs/dygraph-combined.js",
     "node_modules/vue/dist/vue.min.js",
     "app.js",
@@ -31,23 +35,32 @@ fn main() {
     fs::create_dir_all(&assets_out_dir).unwrap();
 
     let mut wahb = String::new();
-    wahb.push_str("fn _webassets_handler_body<'a>(path: &'a str) -> Option<(&'static str, &'static str)> {\n");
+    wahb.push_str("fn _webassets_handler_body<'a>(path: &'a str) -> Option<(WebAssetContainer, &'static str)> {\n");
     wahb.push_str("match path {\n");
 
     for asset_source in ASSET_FILES {
         let source_path = client_dir.join(asset_source);
         let asset_filename = source_path.file_name().unwrap();
         let target_path = assets_out_dir.join(asset_filename);
-        let content_type = match target_path.extension().unwrap().to_str().unwrap() {
+
+        let ext = target_path.extension().unwrap().to_str().unwrap();
+        let content_type = match ext {
             "html" | "htm" => "text/html",
             "js" => "application/javascript",
             "css" => "text/css",
+            "woff" => "application/font-woff",
             _ => "text/plain"
         };
-        let match_arm = format!("\"{}\" => Some((include_str!(\"{}\"), \"{}\")),\n",
-                                asset_filename.to_str().unwrap(),
-                                target_path.to_str().unwrap(),
-                                content_type);
+        let match_arm = format!(
+            "\"{}\" => Some(({}\"{}\")), \"{}\")),\n",
+            asset_filename.to_str().unwrap(),
+            match ext {
+                "woff" => "WebAssetContainer::Binary(include_bytes!(",
+                _ => "WebAssetContainer::Text(include_str!("
+            },
+            target_path.to_str().unwrap(),
+            content_type
+        );
         wahb.push_str(&match_arm);
         fs::copy(&source_path, &target_path).unwrap();
     }
