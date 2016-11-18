@@ -1,7 +1,7 @@
 {
   "name": "stabping",
   "description": "Continuously monitor your connection/ISP's latency & speed and view them in interactive charts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "GPLv3+",
   "author": "icasdri <icasdri@gmail.com>",
   "dependencies": {

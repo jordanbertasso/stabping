@@ -112,7 +112,7 @@ def deploy_release(target_zip):
             'tag_name': ENV.release_version,
             'name': 'Pending Release',
             'body': 'Please wait while release builds finish and artifacts'
-                    ' are uplaoded. This release will be available soon.',
+                    ' are uploaded. This release will be available soon.',
             'draft': True
         }).encode()
         request = Request(repo_api('releases'), new_release_data,
