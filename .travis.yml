@@ -15,6 +15,10 @@ matrix:
     - os: linux
       rust: stable
       env: TARGET=x86_64-unknown-linux-gnu IS_HOST=y
+      addons:
+        apt:
+          packages:
+            - tree
 
 before_install:
   - export PATH="$HOME/.cargo/bin:$PATH"
@@ -25,6 +29,9 @@ before_install:
 
 script:
   - export PATH="$HOME/.cargo/bin:$PATH"
-  - cargo build --verbose --target="$TARGET"
+  - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose --target="$TARGET" else cargo build --release --verbose --target="$TARGET"
   - if [ -z "$SKIP_TEST" ]; then cargo test --verbose --target="$TARGET"; fi
   - tree target
+
+after_script:
+  - if [ ! -z "$TRAVIS_TAG" ]; then ./release.py
