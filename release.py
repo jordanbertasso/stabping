@@ -55,11 +55,7 @@ def consolidate_artifacts():
     ENV.cd_root()
     print_e('------ Artifact Consolidation Routine ------')
 
-    if ENV.is_host:
-        binary = ENV.path('target/release/stabping')
-    else:
-        binary = ENV.path('target/{}/release/stabping'.format(ENV.target))
-
+    binary = ENV.path('target/{}/release/stabping'.format(ENV.target))
     target_zip = 'stabping-{}-{}.zip'.format(ENV.release_version, ENV.target)
 
     if os.path.isfile(binary):
