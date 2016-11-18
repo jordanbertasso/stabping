@@ -8,6 +8,7 @@ matrix:
       addons:
         apt:
           packages:
+            - tree
             - gcc-arm-linux-gnueabihf
             - libc6-armhf-cross
             - libc6-dev-armhf-cross
@@ -26,3 +27,4 @@ script:
   - export PATH="$HOME/.cargo/bin:$PATH"
   - cargo build --verbose --target="$TARGET"
   - if [ -z "$SKIP_TEST" ]; then cargo test --verbose --target="$TARGET"; fi
+  - tree target
