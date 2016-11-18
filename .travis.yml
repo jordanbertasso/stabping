@@ -1,5 +1,15 @@
 language: rust
 
+env:
+  global:
+    - secure: "wKlbQDYmH9ajxtR7qH2OsPymco6QEauTs6jQ1MAQ6khLY2CsThOTBzvKw5ZucJ3OCa31nylFuX1PTBSHm67rYXSQPU/iogg9lU80/6K6hktFqHkDwa8ZHdm5ltwFWKI6XoiCRPdo8AYVfor9949p/BIAWDI5FEV9bhHhlZTobk1us8Wxnq81FnmXB7/hOwG09novGwABBPO0ALWZlOPQyutqAT8PNbcObOr5s8EHuOF9GFnrONcRsD2oOfRLvZzdFhop8HvBxASzQLcY8FzgrIkVvNGJv9hFrV2zdEL+9uS25FCDpYsIW7Ezfo/WGMHMHrPLhek/k/oysjCdSSroYNIKgt1QZeukqNA2zkw/m+pDtq0EPC9tuCdnHd8Q5cuJM5AS4uafIUxmtZFRgp2+m9lqwX9FFKbJSdd+FO2d1HPLCorUKnXms8f7SkfjcXpC6Aw1Zgo7z5AbyLYBN1XYDBT3nC4lrUSaQWQACcNkJx4cmVU2hYIHmZjNgU7kVIfPPT2zYy4NgDJ0EO+IwZw8m9Rm0o8ooPXQ8y/0RoIpRj7HMR4ibsn2/iHM/VUyWjBhveAC0qJMMtpikeBD81X2c/PIIdTtQS+GWpew+o4HaY5B/Dqk4sG00nEzMnkm5aAnOB2tRXIrMAW5QWIEEPz7wVmKBcxIAJPGqUhrZ506yx4="
+
+addons:
+  apt:
+    packages:
+      - tree
+      - python3
+
 matrix:
   include:
     - os: linux
@@ -8,17 +18,12 @@ matrix:
       addons:
         apt:
           packages:
-            - tree
             - gcc-arm-linux-gnueabihf
             - libc6-armhf-cross
             - libc6-dev-armhf-cross
     - os: linux
       rust: stable
       env: TARGET=x86_64-unknown-linux-gnu IS_HOST=y
-      addons:
-        apt:
-          packages:
-            - tree
 
 before_install:
   - export PATH="$HOME/.cargo/bin:$PATH"
@@ -29,9 +34,9 @@ before_install:
 
 script:
   - export PATH="$HOME/.cargo/bin:$PATH"
-  - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose --target="$TARGET" else cargo build --release --verbose --target="$TARGET"
+  - if [ -z "$TRAVIS_TAG" ]; then cargo build --verbose --target="$TARGET"; else cargo build --release --verbose --target="$TARGET"; fi
   - if [ -z "$SKIP_TEST" ]; then cargo test --verbose --target="$TARGET"; fi
   - tree target
 
 after_script:
-  - if [ ! -z "$TRAVIS_TAG" ]; then ./release.py
+  - if [ ! -z "$TRAVIS_TAG" ]; then ./release.py; fi
