@@ -48,8 +48,8 @@ pub struct MainConfiguration {
 impl Default for MainConfiguration {
     fn default() -> Self {
         MainConfiguration {
-            web_listen: "localhost:5001".to_owned(),
-            ws_listen: "localhost:5002".to_owned(),
+            web_listen: "0.0.0.0:5001".to_owned(),
+            ws_listen: "0.0.0.0:5002".to_owned(),
         }
     }
 }
