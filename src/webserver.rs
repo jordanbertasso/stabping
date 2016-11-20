@@ -122,7 +122,9 @@ pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
 
     let iron = Iron::new(mount);
 
+    let web_port = configuration.read().unwrap().web_port;
     thread::spawn(move || {
-        iron.http(("0.0.0.0", configuration.read().unwrap().web_port)).unwrap();
+        println!("Web server listening on port {}.", web_port);
+        iron.http(("0.0.0.0", web_port)).unwrap();
     })
 }

@@ -54,43 +54,52 @@ fn read_json_file<T: Decodable>(path: &Path) -> Result<T, SPIOError> {
 }
 
 fn get_configuration() -> (Arc<RwLock<MainConfiguration>>, PathBuf) {
-    let mut path = match env::current_exe() {
-        Ok(p) => p,
-        Err(_) => match env::current_dir() {
-            Ok(mut p) => {
-                p.pop();
-                p
+    let mut dirs_to_try = vec![
+        env::current_dir().unwrap(),
+        env::current_exe().unwrap()
+    ];
+
+    let mut mc_found = None;
+    let mut config_path_found = None;
+
+    for mut p in dirs_to_try.drain(..) {
+        p.push("stabping_config.json");
+        match read_json_file(&p) {
+            Err(SPIOError::JsonDecode(_)) => {
+                println!(concat!(
+                    "Invalid JSON or missing fields in configuration file '{}'.\n",
+                    "Please ensure that this file is formatted like:\n{}\n"),
+                    p.to_str().unwrap_or("stabping_config.json"),
+                    json::as_pretty_json(&MainConfiguration::default())
+                );
+                process::exit(3);
             },
-            Err(_) => {
-                println!("Error retrieving both current working and running executable directories. Unable to start.");
-                process::exit(5);
+            Err(_) => {},
+            Ok(mc) => {
+                config_path_found = Some(p);
+                mc_found = Some(mc);
+                break;
             }
         }
-    };
-    path.push("stabping_config.json");
+    }
 
-    match read_json_file(&path) {
-        Err(e) => {
-            let (msg, p) = match e {
-                SPIOError::FileOpen(p) => ("Unable to open", p),
-                SPIOError::FileRead(p) => ("Unable to read", p),
-                SPIOError::JsonDecode(p) => ("Unable to decode as JSON", p),
-            };
-            println!(
-                "{} '{}'. Please ensure that stabping_config.json is accessible (exists, has correct permissions, etc.) and formatted like:\n\n{}\n",
-                msg,
-                p.to_str().unwrap_or("???/stabping_config.json"),
-                json::as_pretty_json(&MainConfiguration::default())
-            );
-            drop(path);
-            process::exit(2);
-        },
-        Ok(mc) => {
-            path.pop();
-            path.push("stabping_data");
-            fs::create_dir_all(&path);
-            (Arc::new(RwLock::new(mc)), path)
-        }
+    if let Some(mut path) = config_path_found {
+        println!("Using configuration file at '{}'.", path.to_str().unwrap());
+        path.pop();
+        path.push("stabping_data");
+        fs::create_dir_all(&path);
+        (Arc::new(RwLock::new(mc_found.unwrap())), path)
+    } else {
+        println!(concat!(
+            "Please ensure that 'stabping_config.json' is accessible in either\n",
+            "- the current working directory\n     {}\n",
+            "- the directory where stabping is located\n     {}\n",
+            "\nThis file should be formatted like:\n{}\n"),
+            env::current_dir().unwrap().to_str().unwrap(),
+            env::current_exe().unwrap().to_str().unwrap(),
+            json::as_pretty_json(&MainConfiguration::default())
+        );
+        process::exit(2);
     }
 }
 
