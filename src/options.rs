@@ -41,15 +41,15 @@ impl Default for SPOptions {
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct MainConfiguration {
-    pub web_listen: String,
-    pub ws_listen: String,
+    pub web_port: u16,
+    pub ws_port: u16,
 }
 
 impl Default for MainConfiguration {
     fn default() -> Self {
         MainConfiguration {
-            web_listen: "0.0.0.0:5001".to_owned(),
-            ws_listen: "0.0.0.0:5002".to_owned(),
+            web_port: 5001,
+            ws_port: 5002,
         }
     }
 }

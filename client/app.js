@@ -137,6 +137,9 @@ ajax("GET", "/api/options", "json", function(res) {
     graphs[0].setSeriesLabels(res.tcpping_options.addrs);
 });
 
-new SPSocket("ws://localhost:5002", function(message) {
-    graphs[0].update(message.data);
+ajax("GET", "/api/config/ws_port", "text", function(port_str) {
+    new SPSocket("ws://" + window.location.hostname +
+                 ":" + parseInt(port_str, 10), function(message) {
+        graphs[0].update(message.data);
+    });
 });

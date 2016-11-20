@@ -81,8 +81,8 @@ pub fn ws_server(configuration: Arc<RwLock<MainConfiguration>>,
             let socket = get_socket();
             broadcaster.update(socket.broadcaster());
             println!("New WebSocket created to accept connections");
-            socket.listen(configuration.read().unwrap().ws_listen.as_str())
-                .expect("Unable to listen on websocket.");
+            socket.listen(("0.0.0.0", configuration.read().unwrap().ws_port))
+                  .expect("Unable to listen on websocket.");
         }
     })
 }

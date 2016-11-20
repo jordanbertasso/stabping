@@ -103,15 +103,17 @@ impl Handler for OptionsHandler {
     }
 }
 
+
 pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
                   options: Arc<RwLock<SPOptions>>) -> thread::JoinHandle<()> {
-    fn hello_handler(_: &mut Request) -> IronResult<Response> {
-        Ok(Response::with((status::Ok, "Hello World!")))
-    }
+    let ws_port_str = format!("{}", configuration.read().unwrap().ws_port);
+    let ws_port_handler = move |_: &mut Request| -> IronResult<Response> {
+        Ok(Response::with((status::Ok, ws_port_str.as_str())))
+    };
 
     let mut router = Router::new();
     router.get("/", webassets_handler, "index");
-    router.get("/hello", hello_handler, "hello");
+    router.get("/api/config/ws_port", ws_port_handler, "api_config_ws_port");
     router.any("/api/options", OptionsHandler::new(options.clone()), "api_options");
 
     let mut mount = Mount::new();
@@ -121,6 +123,6 @@ pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
     let iron = Iron::new(mount);
 
     thread::spawn(move || {
-        iron.http(configuration.read().unwrap().web_listen.as_str()).unwrap();
+        iron.http(("0.0.0.0", configuration.read().unwrap().web_port)).unwrap();
     })
 }
