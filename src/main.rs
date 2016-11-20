@@ -17,13 +17,85 @@ use std::mem;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::mpsc::channel;
+use std::process;
+use std::env;
+use std::path::{Path, PathBuf};
+use std::fs;
+use std::fs::File;
+use std::io::Read;
+
+use rustc_serialize::Decodable;
+use rustc_serialize::json;
 
 use wsserver::Broadcaster;
 
 use options::{SPOptions, MainConfiguration};
 
+enum SPIOError {
+    FileOpen(PathBuf),
+    FileRead(PathBuf),
+    JsonDecode(PathBuf),
+}
+
+fn read_json_file<T: Decodable>(path: &Path) -> Result<T, SPIOError> {
+    let mut config_buffer = String::new();
+
+    let mut config_file = try!(
+        File::open(path)
+        .map_err(|e| SPIOError::FileOpen(path.to_owned()))
+    );
+    try!(
+        config_file.read_to_string(&mut config_buffer)
+        .map_err(|e| SPIOError::FileRead(path.to_owned()))
+    );
+
+    json::decode::<T>(&config_buffer)
+        .map_err(|e| SPIOError::JsonDecode(path.to_owned()))
+}
+
+fn get_configuration() -> (Arc<RwLock<MainConfiguration>>, PathBuf) {
+    let mut path = match env::current_exe() {
+        Ok(p) => p,
+        Err(_) => match env::current_dir() {
+            Ok(mut p) => {
+                p.pop();
+                p
+            },
+            Err(_) => {
+                println!("Error retrieving both current working and running executable directories. Unable to start.");
+                process::exit(5);
+            }
+        }
+    };
+    path.push("stabping_config.json");
+
+    match read_json_file(&path) {
+        Err(e) => {
+            let (msg, p) = match e {
+                SPIOError::FileOpen(p) => ("Unable to open", p),
+                SPIOError::FileRead(p) => ("Unable to read", p),
+                SPIOError::JsonDecode(p) => ("Unable to decode as JSON", p),
+            };
+            println!(
+                "{} '{}'. Please ensure that stabping_config.json is accessible (exists, has correct permissions, etc.) and formatted like:\n\n{}\n",
+                msg,
+                p.to_str().unwrap_or("???/stabping_config.json"),
+                json::as_pretty_json(&MainConfiguration::default())
+            );
+            drop(path);
+            process::exit(2);
+        },
+        Ok(mc) => {
+            path.pop();
+            path.push("stabping_data");
+            fs::create_dir_all(&path);
+            (Arc::new(RwLock::new(mc)), path)
+        }
+    }
+}
+
 fn main() {
-    let configuration = Arc::new(RwLock::new(MainConfiguration::default()));
+    let (configuration, data_path) = get_configuration();
     let options = Arc::new(RwLock::new(SPOptions::default()));
 
     let broadcaster = Arc::new(Broadcaster::new());
