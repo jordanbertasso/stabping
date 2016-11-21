@@ -1,6 +1,7 @@
 extern crate chrono;
 extern crate time;
 extern crate rustc_serialize;
+extern crate memmap;
 
 extern crate ws;
 
@@ -9,6 +10,7 @@ extern crate router;
 extern crate mount;
 
 mod options;
+mod persist;
 mod webserver;
 mod wsserver;
 mod tcpping;
