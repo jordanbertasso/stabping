@@ -51,62 +51,66 @@ fn read_json_file<T: Decodable>(path: &Path) -> Result<T, SPIOError> {
         .map_err(|e| SPIOError::Parse(Some(path.to_owned())))
 }
 
-fn get_configuration() -> (Arc<RwLock<MainConfiguration>>, PathBuf) {
-    let mut dirs_to_try = vec![
-        env::current_dir().unwrap(),
-        env::current_exe().unwrap()
+static CONFIG_FILENAME: &'static str = "stabping_config.json";
+
+fn get_configuration() -> Option<(Arc<RwLock<MainConfiguration>>, PathBuf)> {
+    let dirs_to_try = &[
+        ("current working directory",
+         env::current_dir().ok().map(|mut cur| { cur.push(CONFIG_FILENAME); cur })),
+        ("user configuration directory",
+         env::home_dir().map(|mut home| { home.push(".config"); home.push(CONFIG_FILENAME); home })),
+        ("global configuration directory",
+         Some({ let mut p = PathBuf::from("/etc"); p.push(CONFIG_FILENAME); p })),
+        ("directory where stabping is located",
+         env::current_exe().ok().map(|mut exe| { exe.pop(); exe.push(CONFIG_FILENAME); exe })),
     ];
 
-    let mut mc_found = None;
-    let mut config_path_found = None;
-
-    for mut p in dirs_to_try.drain(..) {
-        p.push("stabping_config.json");
-        match read_json_file(&p) {
-            Err(io_err) => {
-                match io_err {
+    println!("Searching for configuration file '{}'.", CONFIG_FILENAME);
+    for &(desc, ref maybe_p) in dirs_to_try {
+        if let &Some(ref p) = maybe_p {
+            println!("- checking {}:\n    '{}'", desc, p.to_str().unwrap());
+            match read_json_file(&p) {
+                Err(io_err) => match io_err {
                     SPIOError::Parse(_) => {
                         println!(concat!(
-                            "{} configuration file. Invalid or missing JSON fields.\n",
+                            "\n{} configuration file. Invalid or missing JSON fields.\n",
                             "Please ensure that this file is formatted like:\n{}\n"),
                             io_err.description(),
                             json::as_pretty_json(&MainConfiguration::default())
                         );
-                        process::exit(3);
+                        return None
                     }
-                    _ => {}
+                    _ => (),
+                },
+                Ok(mc) => {
+                    println!("\nUsing configuration file in {}:\n  '{}'",
+                             desc, p.to_str().unwrap());
+                    let mut data_path = p.clone();
+                    data_path.pop();
+                    data_path.push("stabping_data");
+                    fs::create_dir_all(&data_path);
+                    return Some((Arc::new(RwLock::new(mc)), data_path));
                 }
-            },
-            Ok(mc) => {
-                config_path_found = Some(p);
-                mc_found = Some(mc);
-                break;
             }
+        } else {
+            println!("- could not obtain {}", desc);
         }
     }
 
-    if let Some(mut path) = config_path_found {
-        println!("Using configuration file at '{}'.", path.to_str().unwrap());
-        path.pop();
-        path.push("stabping_data");
-        fs::create_dir_all(&path);
-        (Arc::new(RwLock::new(mc_found.unwrap())), path)
-    } else {
-        println!(concat!(
-            "Please ensure that 'stabping_config.json' is accessible in either\n",
-            "- the current working directory\n     {}\n",
-            "- the directory where stabping is located\n     {}\n",
-            "\nThis file should be formatted like:\n{}\n"),
-            env::current_dir().unwrap().to_str().unwrap(),
-            env::current_exe().unwrap().to_str().unwrap(),
-            json::as_pretty_json(&MainConfiguration::default())
-        );
-        process::exit(2);
-    }
+    println!(
+        "\nFailed to find configuration file. Please ensure that 'stabping_config.json' is accessible in one of the above checked locations, and is formatted like:\n{}\n",
+        json::as_pretty_json(&MainConfiguration::default())
+    );
+    None
 }
 
 fn main() {
-    let (configuration, data_path) = get_configuration();
+    let (configuration, data_path) = match get_configuration() {
+        Some(c) => c,
+        None => {
+            panic!("Failed to get configuration");
+        }
+    };
 
     let targets = match TargetKind::new_managers_for_all(&data_path) {
         Ok(targets) => targets,
