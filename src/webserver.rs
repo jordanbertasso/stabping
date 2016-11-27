@@ -17,7 +17,7 @@ use mount::Mount;
 use rustc_serialize::json;
 
 use persist::{TargetManager, ManagerError};
-use options::{TargetOptions, MainConfiguration};
+use options::MainConfiguration;
 
 #[derive(Debug)]
 enum SPWebError {

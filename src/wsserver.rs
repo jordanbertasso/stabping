@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use ws;
 use ws::{Factory, Handler, Settings, Builder, WebSocket, Handshake};
 
-use options::{TargetOptions, MainConfiguration};
+use options::MainConfiguration;
 
 struct ServerHandler {
     out: ws::Sender,

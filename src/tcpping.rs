@@ -1,6 +1,6 @@
 use std::thread;
 use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use std::time::Duration;
 use time::precise_time_ns;
@@ -10,7 +10,7 @@ use std::net::TcpStream;
 
 use options::SENTINEL_ERROR;
 use options::{TargetOptions, TargetResults};
-use persist::{TargetManager, ManagerError};
+use persist::TargetManager;
 
 pub fn run_tcpping_worker(manager: Arc<TargetManager>,
                           results_out: Sender<TargetResults>) -> thread::JoinHandle<()> {

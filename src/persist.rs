@@ -1,21 +1,14 @@
-use std::error::Error;
 use std::fmt;
 use std::fmt::Display;
-
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::io::BufReader;
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use std::borrow::Borrow;
-use std::collections::HashMap;
-
-use memmap::Mmap;
-use memmap::Protection;
-
+use memmap::{Mmap, Protection};
 use rustc_serialize::json;
 
 use options::{TargetKind, TargetOptions, TargetResults};
@@ -101,10 +94,8 @@ impl AddrIndex {
                                      SPIOError::Metadata(Some(path.to_owned())))));
         let mut index_data = Vec::new();
         if meta.len() > 0 {
-            let mut index_data_buf = String::new();
-
             use std::io::BufRead;
-            let mut reader = BufReader::new(&mut index_file);
+            let reader = BufReader::new(&mut index_file);
 
             for line_res in reader.lines() {
                 let line = try!(line_res

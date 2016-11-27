@@ -2,9 +2,7 @@ extern crate chrono;
 extern crate time;
 extern crate rustc_serialize;
 extern crate memmap;
-
 extern crate ws;
-
 extern crate iron;
 extern crate router;
 extern crate mount;
@@ -15,40 +13,38 @@ mod webserver;
 mod wsserver;
 mod tcpping;
 
-use std::error::Error;
 use std::mem;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::sync::mpsc::channel;
-use std::process;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::fs::File;
 use std::io::Read;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::sync::mpsc::channel;
 
 use rustc_serialize::Decodable;
 use rustc_serialize::json;
 
 use wsserver::Broadcaster;
 
-use options::{TargetKind, TargetOptions, MainConfiguration};
-use persist::{TargetManager, ManagerError, SPIOError};
+use options::{TargetKind, MainConfiguration};
+use persist::{ManagerError, SPIOError};
 
 fn read_json_file<T: Decodable>(path: &Path) -> Result<T, SPIOError> {
     let mut config_buffer = String::new();
 
     let mut config_file = try!(
         File::open(path)
-        .map_err(|e| SPIOError::Open(Some(path.to_owned())))
+        .map_err(|_| SPIOError::Open(Some(path.to_owned())))
     );
     try!(
         config_file.read_to_string(&mut config_buffer)
-        .map_err(|e| SPIOError::Read(Some(path.to_owned())))
+        .map_err(|_| SPIOError::Read(Some(path.to_owned())))
     );
 
     json::decode::<T>(&config_buffer)
-        .map_err(|e| SPIOError::Parse(Some(path.to_owned())))
+        .map_err(|_| SPIOError::Parse(Some(path.to_owned())))
 }
 
 static CONFIG_FILENAME: &'static str = "stabping_config.json";
@@ -72,9 +68,8 @@ fn get_configuration() -> Option<(Arc<RwLock<MainConfiguration>>, PathBuf)> {
             match read_json_file(&p) {
                 Err(io_err) => match io_err {
                     SPIOError::Parse(_) => {
-                        println!(concat!(
-                            "\n{} configuration file. Invalid or missing JSON fields.\n",
-                            "Please ensure that this file is formatted like:\n{}\n"),
+                        println!(
+                            "\n{} configuration file. Invalid or missing JSON fields. Please ensure that this file is formatted like:\n{}\n",
                             io_err.description(),
                             json::as_pretty_json(&MainConfiguration::default())
                         );
@@ -88,7 +83,10 @@ fn get_configuration() -> Option<(Arc<RwLock<MainConfiguration>>, PathBuf)> {
                     let mut data_path = p.clone();
                     data_path.pop();
                     data_path.push("stabping_data");
-                    fs::create_dir_all(&data_path);
+                    if fs::create_dir_all(&data_path).is_err() {
+                        println!("Failed to create data directory '{}'. Please ensure this directory is writable by stabping.", data_path.to_str().unwrap());
+                        return None;
+                    }
                     return Some((Arc::new(RwLock::new(mc)), data_path));
                 }
             }
