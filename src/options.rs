@@ -1,5 +1,14 @@
+use std::path::Path;
+use std::thread;
+use std::sync::Arc;
+use std::sync::mpsc::Sender;
+
+use persist::{TargetManager, ManagerError};
+use tcpping::run_tcpping_worker;
+
 #[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct TargetOptions {
+    pub nonce: i32,
     pub addrs: Vec<String>,  // Vec of addresses (IPs to hit with TCP, files to download, etc.)
     pub interval: u32,  // interval between collection attempts, in millis
     pub avg_across: u32,  // number of sub-attempts average across for each interval
@@ -9,33 +18,65 @@ pub struct TargetOptions {
 pub static SENTINEL_ERROR: i32 = -2_100_000_000;
 pub static SENTINEL_NODATA: i32 = -2_000_000_000;
 
-pub struct TargetResults {
-    /*
-     * Data for each address. Structured as:
-     * [timestamp, datapoint1, datapoint2, ...]
-     * where timestamp is in seconds from epoch,
-     * and each datapoint is for each address in TargetOptions.addrs
-     * (encoding of data inside the i32 is target-defined, or one of the
-     * sentinel values for error or nodata)
-     */
-    pub data: Vec<i32>,
+/*
+ * Data for each address. Structured as:
+ * [timestamp, datapoint1, datapoint2, ..., nonce]
+ *
+ * where timestamp is in seconds from epoch,
+ *
+ * and each datapoint is for each address in TargetOptions.addrs
+ * (encoding of data inside the i32 is target-defined, or one of the
+ * sentinel values for error or nodata),
+ *
+ * and the nonce represents the state of TargetOptions when these data were
+ * collected.
+ */
+pub struct TargetResults(pub Vec<i32>);
+
+pub enum TargetKind {
+    TcpPing,
+    HttpDownload,
 }
 
-#[derive(RustcEncodable, RustcDecodable, Debug)]
-pub struct SPOptions {
-    pub tcpping_options: TargetOptions,
-}
+static ALL_KINDS: [TargetKind; 1] = [TargetKind::TcpPing];
 
-impl Default for SPOptions {
-    fn default() -> Self {
-        SPOptions {
-            tcpping_options: TargetOptions {
+impl TargetKind {
+    pub fn compact_name(&self) -> &'static str {
+        match *self {
+            TargetKind::TcpPing => "tcpping",
+            TargetKind::HttpDownload => "httpdownload",
+        }
+    }
+
+    pub fn default_options(&self) -> TargetOptions {
+        match *self {
+            TargetKind::TcpPing => TargetOptions {
+                nonce: 0,
                 addrs: vec!["google.com:80".to_owned(), "8.8.8.8:53".to_owned()],
                 interval: 10_000,
                 avg_across: 3,
                 pause: 100,
-            }
+            },
+            _ => unimplemented!()
         }
+    }
+
+    pub fn run_worker(&self, manager: Arc<TargetManager>,
+                             results_out: Sender<TargetResults>) -> thread::JoinHandle<()> {
+        match *self {
+            TargetKind::TcpPing => run_tcpping_worker(manager, results_out),
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn new_managers_for_all<'a>(data_path: &'a Path) -> Result<Vec<Arc<TargetManager>>, ManagerError> {
+        let mut targets = Vec::with_capacity(ALL_KINDS.len());
+        for k in ALL_KINDS.iter() {
+            targets.push(
+                Arc::new(try!(TargetManager::new(k, data_path)))
+            );
+        }
+        Ok(targets)
     }
 }
 

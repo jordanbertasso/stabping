@@ -8,17 +8,18 @@ use chrono::Local;
 
 use std::net::TcpStream;
 
-use options;
-use options::{TargetResults, SPOptions};
+use options::SENTINEL_ERROR;
+use options::{TargetOptions, TargetResults};
+use persist::{TargetManager, ManagerError};
 
-pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
-                       results_out: Sender<TargetResults>) -> thread::JoinHandle<()> {
+pub fn run_tcpping_worker(manager: Arc<TargetManager>,
+                          results_out: Sender<TargetResults>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut handles = Vec::new();
 
         loop {
             let (dur_interval, avg_across, dur_pause, num_addrs) = {
-                let ref opt = options.read().unwrap().tcpping_options;
+                let ref opt = manager.options_read();
                 (
                     Duration::from_millis(opt.interval as u64),
                     opt.avg_across,
@@ -28,39 +29,44 @@ pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
             };
             let timestamp: i32 = Local::now().timestamp() as i32;
 
-            for addr in options.read().unwrap().tcpping_options.addrs.iter() {
-                let a = addr.clone();
+            let nonce = {
+                let ref t_opt = manager.options_read();
+                for addr in t_opt.addrs.iter() {
+                    let a = addr.clone();
 
-                let (tx, rx) = channel();
-                handles.push(rx);
+                    let (tx, rx) = channel();
+                    handles.push(rx);
 
-                thread::spawn(move || {
-                    let mut sum = 0;
-                    let mut denom = 0;
-                    for _ in 0..avg_across {
-                        let start = precise_time_ns();
-                        if TcpStream::connect(a.as_str()).is_ok() {
-                            sum += precise_time_ns() - start;
-                            denom += 1;
+                    thread::spawn(move || {
+                        let mut sum = 0;
+                        let mut denom = 0;
+                        for _ in 0..avg_across {
+                            let start = precise_time_ns();
+                            if TcpStream::connect(a.as_str()).is_ok() {
+                                sum += precise_time_ns() - start;
+                                denom += 1;
+                            }
+                            thread::sleep(dur_pause);
                         }
-                        thread::sleep(dur_pause);
-                    }
 
-                    if denom != 0 {
-                        /*
-                         * send back micro-second average.
-                         *
-                         * we don't care if send fails as that likely means
-                         * we took too long and the control thread is no longer
-                         * waiting for us
-                         */
-                        let _ = tx.send((sum / denom / 1000) as i32);
-                    }
-                });
-            }
+                        if denom != 0 {
+                            /*
+                             * send back micro-second average.
+                             *
+                             * we don't care if send fails as that likely means
+                             * we took too long and the control thread is no longer
+                             * waiting for us
+                             */
+                            let _ = tx.send((sum / denom / 1000) as i32);
+                        }
+                    });
+                }
+                t_opt.nonce
+            };
+
             thread::sleep(dur_interval);
 
-            let mut data: Vec<i32> = Vec::with_capacity(1 + num_addrs);
+            let mut data: Vec<i32> = Vec::with_capacity(1 + num_addrs + 1);
 
             data.push(timestamp);
 
@@ -69,11 +75,13 @@ pub fn run_tcpping_workers(options: Arc<RwLock<SPOptions>>,
                     data.push(val);
                 } else {
                     // on error or timeout, hand back a sentinel value
-                    data.push(options::SENTINEL_ERROR);
+                    data.push(SENTINEL_ERROR);
                 }
             }
 
-            if results_out.send(TargetResults {data: data}).is_err() {
+            data.push(nonce);
+
+            if results_out.send(TargetResults(data)).is_err() {
                 println!("Worker Control: failed to send final results back.");
             }
         }

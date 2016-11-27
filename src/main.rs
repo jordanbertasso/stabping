@@ -15,6 +15,7 @@ mod webserver;
 mod wsserver;
 mod tcpping;
 
+use std::error::Error;
 use std::mem;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -31,28 +32,23 @@ use rustc_serialize::json;
 
 use wsserver::Broadcaster;
 
-use options::{SPOptions, MainConfiguration};
-
-enum SPIOError {
-    FileOpen(PathBuf),
-    FileRead(PathBuf),
-    JsonDecode(PathBuf),
-}
+use options::{TargetKind, TargetOptions, MainConfiguration};
+use persist::{TargetManager, ManagerError, SPIOError};
 
 fn read_json_file<T: Decodable>(path: &Path) -> Result<T, SPIOError> {
     let mut config_buffer = String::new();
 
     let mut config_file = try!(
         File::open(path)
-        .map_err(|e| SPIOError::FileOpen(path.to_owned()))
+        .map_err(|e| SPIOError::Open(Some(path.to_owned())))
     );
     try!(
         config_file.read_to_string(&mut config_buffer)
-        .map_err(|e| SPIOError::FileRead(path.to_owned()))
+        .map_err(|e| SPIOError::Read(Some(path.to_owned())))
     );
 
     json::decode::<T>(&config_buffer)
-        .map_err(|e| SPIOError::JsonDecode(path.to_owned()))
+        .map_err(|e| SPIOError::Parse(Some(path.to_owned())))
 }
 
 fn get_configuration() -> (Arc<RwLock<MainConfiguration>>, PathBuf) {
@@ -67,16 +63,20 @@ fn get_configuration() -> (Arc<RwLock<MainConfiguration>>, PathBuf) {
     for mut p in dirs_to_try.drain(..) {
         p.push("stabping_config.json");
         match read_json_file(&p) {
-            Err(SPIOError::JsonDecode(_)) => {
-                println!(concat!(
-                    "Invalid JSON or missing fields in configuration file '{}'.\n",
-                    "Please ensure that this file is formatted like:\n{}\n"),
-                    p.to_str().unwrap_or("stabping_config.json"),
-                    json::as_pretty_json(&MainConfiguration::default())
-                );
-                process::exit(3);
+            Err(io_err) => {
+                match io_err {
+                    SPIOError::Parse(_) => {
+                        println!(concat!(
+                            "{} configuration file. Invalid or missing JSON fields.\n",
+                            "Please ensure that this file is formatted like:\n{}\n"),
+                            io_err.description(),
+                            json::as_pretty_json(&MainConfiguration::default())
+                        );
+                        process::exit(3);
+                    }
+                    _ => {}
+                }
             },
-            Err(_) => {},
             Ok(mc) => {
                 config_path_found = Some(p);
                 mc_found = Some(mc);
@@ -107,21 +107,26 @@ fn get_configuration() -> (Arc<RwLock<MainConfiguration>>, PathBuf) {
 
 fn main() {
     let (configuration, data_path) = get_configuration();
-    let options = Arc::new(RwLock::new(SPOptions::default()));
+
+    let targets = match TargetKind::new_managers_for_all(&data_path) {
+        Ok(targets) => targets,
+        Err(e) => handle_fatal_error(e),
+    };
 
     let broadcaster = Arc::new(Broadcaster::new());
 
     let web_thread = webserver::web_server(configuration.clone(),
-                                           options.clone());
+                                           targets.iter());
     let ws_thread = wsserver::ws_server(configuration.clone(),
-                                        options.clone(),
                                         broadcaster.clone());
 
-    let (tcpping_sender, tcpping_results) = channel();
-    let tcpping_thread = tcpping::run_tcpping_workers(options.clone(), tcpping_sender.clone());
+    let (sender, results) = channel();
+    for tm in targets.iter() {
+        tm.kind.run_worker(tm.clone(), sender.clone());
+    }
 
-    for r in tcpping_results {
-        let mut orig_data: Vec<i32> = r.data;
+    for r in results {
+        let mut orig_data: Vec<i32> = r.0;
 
         let new_raw_data: Vec<u8> = {
             let raw_data_ptr = orig_data.as_mut_ptr();
@@ -137,4 +142,8 @@ fn main() {
 
         let _ = broadcaster.send(new_raw_data);
     }
+}
+
+fn handle_fatal_error(e: ManagerError) -> ! {
+    panic!("{}", e);
 }

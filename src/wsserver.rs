@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use ws;
 use ws::{Factory, Handler, Settings, Builder, WebSocket, Handshake};
 
-use options::{SPOptions, MainConfiguration};
+use options::{TargetOptions, MainConfiguration};
 
 struct ServerHandler {
     out: ws::Sender,
@@ -74,7 +74,6 @@ fn get_socket() -> WebSocket<ServerFactory> {
 }
 
 pub fn ws_server(configuration: Arc<RwLock<MainConfiguration>>,
-                 _: Arc<RwLock<SPOptions>>,
                  broadcaster: Arc<Broadcaster>) -> thread::JoinHandle<()> {
     let ws_port = configuration.read().unwrap().ws_port;
     thread::spawn(move || {

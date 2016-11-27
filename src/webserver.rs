@@ -16,7 +16,8 @@ use mount::Mount;
 
 use rustc_serialize::json;
 
-use options::{SPOptions, MainConfiguration};
+use persist::{TargetManager, ManagerError};
+use options::{TargetOptions, MainConfiguration};
 
 #[derive(Debug)]
 enum SPWebError {
@@ -72,25 +73,25 @@ fn webassets_handler(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-struct OptionsHandler {
-    options: Arc<RwLock<SPOptions>>,
+struct TargetHandler {
+    manager: Arc<TargetManager>,
 }
 
-impl OptionsHandler {
-    fn new(options: Arc<RwLock<SPOptions>>) -> Self {
-        OptionsHandler {
-            options: options,
+impl TargetHandler {
+    fn new(manager: Arc<TargetManager>) -> Self {
+        TargetHandler {
+            manager: manager,
         }
     }
 }
 
-impl Handler for OptionsHandler {
+impl Handler for TargetHandler {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
         match req.method {
             Method::Get => {
                 let options_ser = {
-                    let options = self.options.read().unwrap();
-                    json::encode(&*options).unwrap()
+                    let options_guard = self.manager.options_read();
+                    json::encode(&*options_guard).unwrap()
                 };
                 Ok(Response::with((status::Ok, options_ser)))
             },
@@ -104,8 +105,9 @@ impl Handler for OptionsHandler {
 }
 
 
-pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
-                  options: Arc<RwLock<SPOptions>>) -> thread::JoinHandle<()> {
+pub fn web_server<'a, T>(configuration: Arc<RwLock<MainConfiguration>>,
+                         targets: T) -> thread::JoinHandle<()>
+                         where T: Iterator<Item=&'a Arc<TargetManager>> {
     let ws_port_str = format!("{}", configuration.read().unwrap().ws_port);
     let ws_port_handler = move |_: &mut Request| -> IronResult<Response> {
         Ok(Response::with((status::Ok, ws_port_str.as_str())))
@@ -114,7 +116,12 @@ pub fn web_server(configuration: Arc<RwLock<MainConfiguration>>,
     let mut router = Router::new();
     router.get("/", webassets_handler, "index");
     router.get("/api/config/ws_port", ws_port_handler, "api_config_ws_port");
-    router.any("/api/options", OptionsHandler::new(options.clone()), "api_options");
+
+    for tm in targets {
+        router.any(format!("/api/target/{}", tm.kind.compact_name()),
+                   TargetHandler::new(tm.clone()),
+                   format!("target_{}", tm.kind.compact_name()));
+    }
 
     let mut mount = Mount::new();
     mount.mount("/", router);

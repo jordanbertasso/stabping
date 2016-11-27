@@ -1,9 +1,14 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::error::Error;
+use std::fmt;
+use std::fmt::Display;
+
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::io::BufReader;
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -13,67 +18,121 @@ use memmap::Protection;
 
 use rustc_serialize::json;
 
-use options::SPOptions;
-use options::TargetResults;
+use options::{TargetKind, TargetOptions, TargetResults};
 
-enum SPPError {
-    IndexFileOpen(PathBuf),
-    IndexFileParse(PathBuf),
-    IndexFileRead(PathBuf),
-    IndexFileMetadata(PathBuf),
-    IndexFileWrite,
-    DataFileOpen(PathBuf),
-    DataFileMap(PathBuf),
-    DataFileAppend(PathBuf),
+#[derive(Debug)]
+pub enum SPIOError {
+    Open(Option<PathBuf>),
+    Read(Option<PathBuf>),
+    Metadata(Option<PathBuf>),
+    Write(Option<PathBuf>),
+    Parse(Option<PathBuf>),
 }
 
-#[derive(RustcEncodable, RustcDecodable, Debug)]
-struct IndexData(Vec<String>);
+impl SPIOError {
+    pub fn description(&self) -> String {
+        let (verb, maybe_path) = match *self {
+            SPIOError::Open(ref p) => ("open", p),
+            SPIOError::Read(ref p) => ("read", p),
+            SPIOError::Metadata(ref p) => ("get metadata", p),
+            SPIOError::Write(ref p) => ("write", p),
+            SPIOError::Parse(ref p) => ("parse", p),
+        };
 
-struct Index {
+        let path_str = match maybe_path {
+            &Some(ref path) => match path.to_str() {
+                Some(s) => s,
+                None => "",
+            },
+            &None => "",
+        };
+
+        format!("Unable to {} '{}'", verb, path_str)
+    }
+}
+
+impl Display for SPIOError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(&self.description())
+    }
+}
+
+
+#[derive(Debug)]
+pub enum ManagerError {
+    IndexFileIO(SPIOError),
+    DataFileIO(SPIOError),
+    OptionsFileIO(SPIOError),
+}
+
+impl ManagerError {
+    pub fn description(&self) -> String {
+        match *self {
+            ManagerError::IndexFileIO(ref e) => format!("{} index file", e.description()),
+            ManagerError::DataFileIO(ref e) => format!("{} data file", e.description()),
+            ManagerError::OptionsFileIO(ref e) => format!("{} options file", e.description()),
+        }
+    }
+}
+
+impl Display for ManagerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(&self.description())
+    }
+}
+
+
+#[derive(Debug)]
+struct AddrIndex {
     file: File,
-    data: IndexData,
+    data: Vec<String>,
     map: HashMap<String, i32>,
 }
 
-impl Index {
-    fn from_path(path: PathBuf) -> Result<Self, SPPError> {
+impl AddrIndex {
+    fn from_path<'b>(path: &'b Path) -> Result<Self, ManagerError> {
         let mut index_file = try!(OpenOptions::new().read(true).append(true).create(true)
-                                  .open(&path)
-                                  .map_err(|_| SPPError::IndexFileOpen(path.clone())));
+                                  .open(path)
+                                  .map_err(|_| ManagerError::IndexFileIO(
+                                               SPIOError::Open(Some(path.to_owned())))));
 
         let meta = try!(index_file.metadata()
-                        .map_err(|_| SPPError::IndexFileMetadata(path.clone())));
+                        .map_err(|_| ManagerError::IndexFileIO(
+                                     SPIOError::Metadata(Some(path.to_owned())))));
+        let mut index_data = Vec::new();
         if meta.len() > 0 {
             let mut index_data_buf = String::new();
-            try!(index_file.read_to_string(&mut index_data_buf)
-                 .map_err(|_| SPPError::IndexFileRead(path.clone())));
-            let index_data = try!(json::decode(&index_data_buf)
-                                  .map_err(|_| SPPError::IndexFileParse(path.clone())));
-            Ok(Index::from_data_and_file(index_data, index_file))
-        } else {
-            Ok(Index::from_data_and_file(IndexData(Vec::new()), index_file))
-        }
-    }
 
-    fn from_data_and_file(index_data: IndexData, index_file: File) -> Self {
-        let mut map = HashMap::new();
-        for (i, addr) in index_data.0.iter().enumerate() {
-            map.insert(addr.clone(), i as i32);
+            use std::io::BufRead;
+            let mut reader = BufReader::new(&mut index_file);
+
+            for line_res in reader.lines() {
+                let line = try!(line_res
+                                .map_err(|_| ManagerError::IndexFileIO(
+                                             SPIOError::Parse(Some(path.to_owned())))));
+                index_data.push(line);
+            }
         }
 
-        Index {
+        let mut index_map = HashMap::new();
+        for (i, addr) in index_data.iter().enumerate() {
+            index_map.insert(addr.clone(), i as i32);
+        }
+
+        Ok(AddrIndex {
             file: index_file,
             data: index_data,
-            map: map,
-        }
+            map: index_map,
+        })
     }
 
-    fn write_to_file(&mut self) -> Result<(), SPPError> {
-        let encoded = json::encode(&self.data).unwrap();
-        try!(self.file.write_all(encoded.as_bytes())
-             .map_err(|_| SPPError::IndexFileWrite));
-        Ok(())
+    fn add_addr(&mut self, addr: String) -> Result<(), ManagerError> {
+        self.map.insert(addr.clone(), self.data.len() as i32);
+        self.data.push(addr);
+        let just_added_addr = self.data.last().unwrap();
+        Ok(try!(self.file.write_all(just_added_addr.as_bytes())
+                .map_err(|_| ManagerError::IndexFileIO(
+                             SPIOError::Write(None)))))
     }
 
     fn get_index(&self, addr: &str) -> Option<i32> {
@@ -81,44 +140,75 @@ impl Index {
     }
 
     fn get_addr(&self, index: i32) -> Option<&String> {
-        self.data.0.get(index as usize)
+        self.data.get(index as usize)
     }
 }
 
-struct Persister {
-    index: Arc<RwLock<Index>>,
-    data_file: Arc<RwLock<File>>,
-    options: Arc<RwLock<SPOptions>>,
+pub struct TargetManager {
+    pub kind: &'static TargetKind,
+    index: RwLock<AddrIndex>,
+    data_file: RwLock<File>,
+    options: RwLock<TargetOptions>,
 }
 
 
-impl Persister {
-    fn new<'b>(data_path: &'b Path, options: Arc<RwLock<SPOptions>>) -> Result<Self, SPPError> {
+impl TargetManager {
+    pub fn new<'b>(kind: &'static TargetKind, data_path: &'b Path) -> Result<Self, ManagerError> {
         let mut path = data_path.to_owned();
 
-        path.push("data.dat");
+        path.push(format!("{}.data.dat", kind.compact_name()));
         let data_file = try!(OpenOptions::new().read(true).append(true).create(true)
                              .open(&path)
-                             .map_err(|_| SPPError::DataFileOpen(path.clone())));
+                             .map_err(|_| ManagerError::DataFileIO(
+                                          SPIOError::Open(Some(path.clone())))));
 
         path.pop();
-        path.push("index.json");
-        let index = try!(Index::from_path(path));
+        path.push(format!("{}.options.json", kind.compact_name()));
+        let mut options_file = try!(OpenOptions::new().read(true).write(true).create(true)
+                                .open(&path)
+                                .map_err(|_| ManagerError::OptionsFileIO(
+                                             SPIOError::Open(Some(path.clone())))));
+        let mut options_buf = String::new();
+        try!(options_file.read_to_string(&mut options_buf)
+             .map_err(|_| ManagerError::OptionsFileIO(
+                          SPIOError::Read(Some(path.clone())))));
+        let options = try!(json::decode(&options_buf)
+                           .map_err(|_| ManagerError::OptionsFileIO(
+                                        SPIOError::Parse(Some(path.clone())))));
+
+        path.pop();
+        path.push(format!("{}.index.json", kind.compact_name()));
+        let index = try!(AddrIndex::from_path(&path));
 
 
-        Ok(Persister {
-            index: Arc::new(RwLock::new(index)),
-            data_file: Arc::new(RwLock::new(data_file)),
-            options: options,
+        Ok(TargetManager {
+            kind: kind,
+            index: RwLock::new(index),
+            data_file: RwLock::new(data_file),
+            options: RwLock::new(options),
         })
     }
 
-    fn append(&mut self, nonce: i32, data_res: TargetResults) {
-        let ref mut file = *self.data_file.write().unwrap();
-
+    pub fn options_read<'a>(&'a self) -> RwLockReadGuard<'a, TargetOptions> {
+        self.options.read().unwrap()
     }
 
-    fn read_out(&self, nonce: i32, date_from: i32, date_to: i32) {
+    pub fn options_write<'a>(&'a self) -> RwLockWriteGuard<'a, TargetOptions> {
+        self.options.write().unwrap()
+    }
+
+    pub fn append_data(&mut self, data_res: TargetResults) {
+        let mut data = data_res.0;
+        let nonce = data.pop().unwrap();
+        let options = self.options.read().unwrap();
+        if nonce != options.nonce {
+            println!("Nonce mismatch for data append");
+            return;
+        }
+        let ref mut file = *self.data_file.write().unwrap();
+    }
+
+    pub fn read_data_for_body(&self, nonce: i32, date_from: i32, date_to: i32) {
 
     }
 }
