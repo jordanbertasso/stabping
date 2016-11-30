@@ -7,45 +7,28 @@ extern crate iron;
 extern crate router;
 extern crate mount;
 
+mod helpers;
 mod options;
 mod persist;
 mod webserver;
 mod wsserver;
 mod tcpping;
 
-use std::mem;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::fs::File;
-use std::io::Read;
+use std::fs::{OpenOptions, File};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::mpsc::channel;
 
-use rustc_serialize::Decodable;
 use rustc_serialize::json;
 
 use wsserver::Broadcaster;
 
-use options::{TargetKind, MainConfiguration, VecIntoRawBytes};
-use persist::{ManagerError, SPIOError};
-
-fn read_json_file<T: Decodable>(path: &Path) -> Result<T, SPIOError> {
-    let mut config_buffer = String::new();
-
-    let mut config_file = try!(
-        File::open(path)
-        .map_err(|_| SPIOError::Open(Some(path.to_owned())))
-    );
-    try!(
-        config_file.read_to_string(&mut config_buffer)
-        .map_err(|_| SPIOError::Read(Some(path.to_owned())))
-    );
-
-    json::decode::<T>(&config_buffer)
-        .map_err(|_| SPIOError::Parse(Some(path.to_owned())))
-}
+use helpers::{SPIOError, SPFile, VecIntoRawBytes};
+use options::{TargetKind, MainConfiguration};
+use persist::{TargetManager, ManagerError};
 
 static CONFIG_FILENAME: &'static str = "stabping_config.json";
 
@@ -64,31 +47,31 @@ fn get_configuration() -> Option<(Arc<RwLock<MainConfiguration>>, PathBuf)> {
     println!("Searching for configuration file '{}'.", CONFIG_FILENAME);
     for &(desc, ref maybe_p) in dirs_to_try {
         if let &Some(ref p) = maybe_p {
-            println!("- checking {}:\n    '{}'", desc, p.to_str().unwrap());
-            match read_json_file(&p) {
-                Err(io_err) => match io_err {
-                    SPIOError::Parse(_) => {
+            println!("- checking {}:\n    {}", desc, p.to_str().unwrap());
+            if let Ok(mut file) = File::open_from(OpenOptions::new().read(true), &p) {
+                match file.read_json_p(&p) {
+                    Err(err @ SPIOError::Parse(_)) => {
                         println!(
                             "\n{} configuration file. Invalid or missing JSON fields. Please ensure that this file is formatted like:\n{}\n",
-                            io_err.description(),
+                            err.description(),
                             json::as_pretty_json(&MainConfiguration::default())
                         );
                         return None
-                    }
-                    _ => (),
-                },
-                Ok(mc) => {
-                    println!("\nUsing configuration file in {}:\n  '{}'",
-                             desc, p.to_str().unwrap());
-                    let mut data_path = p.clone();
-                    data_path.pop();
-                    data_path.push("stabping_data");
-                    if fs::create_dir_all(&data_path).is_err() {
-                        println!("Failed to create data directory '{}'. Please ensure this directory is writable by stabping.", data_path.to_str().unwrap());
-                        return None;
-                    }
-                    return Some((Arc::new(RwLock::new(mc)), data_path));
-                }
+                    },
+                    Ok(mc) => {
+                        println!("\nUsing configuration file in {}:\n  {}",
+                                 desc, p.to_str().unwrap());
+                        let mut data_path = p.clone();
+                        data_path.pop();
+                        data_path.push("stabping_data");
+                        if fs::create_dir_all(&data_path).is_err() {
+                            println!("Failed to create data directory '{}'. Please ensure this directory is writable by stabping.", data_path.to_str().unwrap());
+                            return None;
+                        }
+                        return Some((Arc::new(RwLock::new(mc)), data_path));
+                    },
+                    _ => {}
+                };
             }
         } else {
             println!("- could not obtain {}", desc);

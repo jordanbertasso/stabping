@@ -1,4 +1,3 @@
-use std::mem;
 use std::path::Path;
 use std::thread;
 use std::sync::Arc;
@@ -6,24 +5,6 @@ use std::sync::mpsc::Sender;
 
 use persist::{TargetManager, ManagerError};
 use tcpping::run_tcpping_worker;
-
-pub trait VecIntoRawBytes {
-    fn into_raw_bytes(self) -> Vec<u8>;
-}
-
-impl VecIntoRawBytes for Vec<i32> {
-    fn into_raw_bytes(mut self) -> Vec<u8> {
-        let raw_ptr = self.as_mut_ptr();
-        let new_len = self.len() * mem::size_of::<i32>();
-        let new_cap = self.capacity() * mem::size_of::<i32>();
-
-        unsafe {
-            // take full control over memory originally controlled by orig_data
-            mem::forget(self);
-            Vec::from_raw_parts(raw_ptr as *mut u8, new_len, new_cap)
-        }
-    }
-}
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct TargetOptions {

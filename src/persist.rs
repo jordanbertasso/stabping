@@ -7,51 +7,12 @@ use std::fs::OpenOptions;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::io::BufReader;
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::ops::Deref;
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use memmap::{Mmap, Protection};
-use rustc_serialize::json;
 
-use options::{TargetKind, TargetOptions, TargetResults, VecIntoRawBytes};
-
-#[derive(Debug)]
-pub enum SPIOError {
-    Open(Option<PathBuf>),
-    Read(Option<PathBuf>),
-    Metadata(Option<PathBuf>),
-    Write(Option<PathBuf>),
-    Parse(Option<PathBuf>),
-}
-
-impl SPIOError {
-    pub fn description(&self) -> String {
-        let (verb, maybe_path) = match *self {
-            SPIOError::Open(ref p) => ("open", p),
-            SPIOError::Read(ref p) => ("read", p),
-            SPIOError::Metadata(ref p) => ("get metadata", p),
-            SPIOError::Write(ref p) => ("write", p),
-            SPIOError::Parse(ref p) => ("parse", p),
-        };
-
-        let path_str = match maybe_path {
-            &Some(ref path) => match path.to_str() {
-                Some(s) => s,
-                None => "",
-            },
-            &None => "",
-        };
-
-        format!("Unable to {} '{}'", verb, path_str)
-    }
-}
-
-impl Display for SPIOError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&self.description())
-    }
-}
-
+use helpers::{SPIOError, SPFile, VecIntoRawBytes};
+use options::{TargetKind, TargetOptions, TargetResults};
 
 #[derive(Debug)]
 pub enum ManagerError {
@@ -86,16 +47,14 @@ struct AddrIndex {
 
 impl AddrIndex {
     fn from_path<'b>(path: &'b Path) -> Result<Self, ManagerError> {
-        let mut index_file = try!(OpenOptions::new().read(true).append(true).create(true)
-                                  .open(path)
-                                  .map_err(|_| ManagerError::IndexFileIO(
-                                               SPIOError::Open(Some(path.to_owned())))));
+        let mut index_file = try!(
+            File::open_from(OpenOptions::new().read(true).append(true).create(true), path)
+            .map_err(|e| ManagerError::IndexFileIO(e))
+        );
 
-        let meta = try!(index_file.metadata()
-                        .map_err(|_| ManagerError::IndexFileIO(
-                                     SPIOError::Metadata(Some(path.to_owned())))));
         let mut index_data = Vec::new();
-        if meta.len() > 0 {
+        if try!(index_file.length_p(path)
+                .map_err(|e| ManagerError::IndexFileIO(e))) > 0 {
             use std::io::BufRead;
             let reader = BufReader::new(&mut index_file);
 
@@ -153,48 +112,35 @@ pub struct TargetManager {
 }
 
 
-fn write_options_to_file<T>(options: T, options_file: &mut File) -> Result<(), ManagerError>
-                            where T: Deref<Target=TargetOptions> {
-    let buf = json::encode(&*options).unwrap();
-    try!(options_file.set_len(0)
-         .map_err(|_| ManagerError::OptionsFileIO(
-                      SPIOError::Write(None))));
-    try!(options_file.write_all(buf.as_bytes())
-         .map_err(|_| ManagerError::OptionsFileIO(
-                      SPIOError::Write(None))));
-    Ok(())
-}
-
 impl TargetManager {
     pub fn new<'b>(kind: &'static TargetKind, data_path: &'b Path) -> Result<Self, ManagerError> {
         let mut path = data_path.to_owned();
 
         path.push(format!("{}.data.dat", kind.compact_name()));
-        let data_file = try!(OpenOptions::new().read(true).append(true).create(true)
-                             .open(&path)
-                             .map_err(|_| ManagerError::DataFileIO(
-                                          SPIOError::Open(Some(path.clone())))));
+        let data_file = try!(
+            File::open_from(OpenOptions::new().read(true).append(true).create(true), &path)
+            .map_err(|e| ManagerError::DataFileIO(e))
+        );
 
         path.pop();
         path.push(format!("{}.options.json", kind.compact_name()));
-        let mut options_file = try!(OpenOptions::new().read(true).write(true).create(true)
-                                    .open(&path)
-                                    .map_err(|_| ManagerError::OptionsFileIO(
-                                                 SPIOError::Open(Some(path.clone())))));
-        let options_meta = try!(options_file.metadata()
-                                .map_err(|_| ManagerError::OptionsFileIO(
-                                             SPIOError::Metadata(Some(path.clone())))));
-        let options = if options_meta.len() > 0 {
-            let mut options_buf = String::new();
-            try!(options_file.read_to_string(&mut options_buf)
-                 .map_err(|_| ManagerError::OptionsFileIO(
-                              SPIOError::Read(Some(path.clone())))));
-            try!(json::decode(&options_buf)
-                 .map_err(|_| ManagerError::OptionsFileIO(
-                              SPIOError::Parse(Some(path.clone())))))
+        let mut options_file = try!(
+            File::open_from(OpenOptions::new().read(true).write(true).create(true), &path)
+            .map_err(|e| ManagerError::OptionsFileIO(e))
+        );
+
+        let options = if try!(options_file.length_p(&path)
+                              .map_err(|e| ManagerError::OptionsFileIO(e))) > 0 {
+            try!(
+                options_file.read_json_p(&path)
+                .map_err(|e| ManagerError::OptionsFileIO(e))
+            )
         } else {
             let default_options = kind.default_options();
-            try!(write_options_to_file(&default_options, &mut options_file));
+            try!(
+                options_file.overwrite_json_p(&default_options, &path)
+                .map_err(|e| ManagerError::OptionsFileIO(e))
+            );
             default_options
         };
 
@@ -220,7 +166,10 @@ impl TargetManager {
         let mut guard = self.options.write().unwrap();
         let mut options_file = self.options_file.write().unwrap();
         *guard = new_options;
-        try!(write_options_to_file(guard, &mut options_file));
+        try!(
+            options_file.overwrite_json(&*guard)
+            .map_err(|e| ManagerError::OptionsFileIO(e))
+        );
         Ok(())
     }
 
