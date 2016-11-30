@@ -66,7 +66,7 @@ pub fn run_tcpping_worker(manager: Arc<TargetManager>,
 
             thread::sleep(dur_interval);
 
-            let mut data: Vec<i32> = Vec::with_capacity(2 + num_addrs);
+            let mut data: Vec<i32> = Vec::with_capacity(3 + num_addrs);
 
             data.push(manager.kind.kind_id());
             data.push(nonce);
