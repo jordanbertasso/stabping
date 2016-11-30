@@ -58,11 +58,14 @@ def consolidate_artifacts():
     binary = ENV.path('target/{}/release/stabping'.format(ENV.target))
     target_zip = 'stabping-{}-{}.zip'.format(ENV.release_version, ENV.target)
 
+    sample_cfg = ENV.path('stabping_config.json')
+
     if os.path.isfile(binary):
         from zipfile import ZipFile
         print_e('Zipping binary to: ' + target_zip)
         with ZipFile(target_zip, 'w') as zipped:
             zipped.write(binary, arcname=os.path.basename(binary))
+            zipped.write(sample_cfg, arcname=os.path.basename(sample_cfg))
     else:
         raise BuildError('Failed to find binary: {}'.format(binary))
 
