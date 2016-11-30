@@ -28,7 +28,7 @@ use rustc_serialize::json;
 
 use wsserver::Broadcaster;
 
-use options::{TargetKind, MainConfiguration};
+use options::{TargetKind, MainConfiguration, VecIntoRawBytes};
 use persist::{ManagerError, SPIOError};
 
 fn read_json_file<T: Decodable>(path: &Path) -> Result<T, SPIOError> {
@@ -128,21 +128,8 @@ fn main() {
     }
 
     for r in results {
-        let mut orig_data: Vec<i32> = r.0;
-
-        let new_raw_data: Vec<u8> = {
-            let raw_data_ptr = orig_data.as_mut_ptr();
-            let new_len = orig_data.len() * mem::size_of::<i32>();
-            let new_cap = orig_data.capacity() * mem::size_of::<i32>();
-
-            unsafe {
-                // take full control over memory originally controlled by orig_data
-                mem::forget(orig_data);
-                Vec::from_raw_parts(raw_data_ptr as *mut u8, new_len, new_cap)
-            }
-        };
-
-        let _ = broadcaster.send(new_raw_data);
+        let raw_data_bytes = r.0.into_raw_bytes();
+        let _ = broadcaster.send(raw_data_bytes);
     }
 }
 

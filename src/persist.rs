@@ -1,17 +1,19 @@
 use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::io::BufReader;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::ops::Deref;
 
 use memmap::{Mmap, Protection};
 use rustc_serialize::json;
 
-use options::{TargetKind, TargetOptions, TargetResults};
+use options::{TargetKind, TargetOptions, TargetResults, VecIntoRawBytes};
 
 #[derive(Debug)]
 pub enum SPIOError {
@@ -118,20 +120,27 @@ impl AddrIndex {
     }
 
     fn add_addr(&mut self, addr: String) -> Result<(), ManagerError> {
-        self.map.insert(addr.clone(), self.data.len() as i32);
-        self.data.push(addr);
-        let just_added_addr = self.data.last().unwrap();
-        Ok(try!(self.file.write_all(just_added_addr.as_bytes())
-                .map_err(|_| ManagerError::IndexFileIO(
-                             SPIOError::Write(None)))))
+        match self.map.entry(addr) {
+            Entry::Occupied(_) => {
+                // we already have it, so no need to make another index
+                Ok(())
+            },
+            Entry::Vacant(v) => {
+                self.data.push(v.key().clone());
+                v.insert(self.data.len() as i32);
+                Ok(try!(self.file.write_all(self.data.last().unwrap().as_bytes())
+                        .map_err(|_| ManagerError::IndexFileIO(
+                                     SPIOError::Write(None)))))
+            }
+        }
     }
 
-    fn get_index(&self, addr: &str) -> Option<i32> {
-        self.map.get(addr).cloned()
+    fn get_index(&self, addr: &str) -> i32 {
+        self.map.get(addr).cloned().expect("Non-existant addr requested from AddrIndex!")
     }
 
-    fn get_addr(&self, index: i32) -> Option<&String> {
-        self.data.get(index as usize)
+    fn get_addr(&self, index: i32) -> &String {
+        self.data.get(index as usize).expect("Non-existant index requested from AddrIndex!")
     }
 }
 
@@ -139,9 +148,22 @@ pub struct TargetManager {
     pub kind: &'static TargetKind,
     index: RwLock<AddrIndex>,
     data_file: RwLock<File>,
+    options_file: RwLock<File>,
     options: RwLock<TargetOptions>,
 }
 
+
+fn write_options_to_file<T>(options: T, options_file: &mut File) -> Result<(), ManagerError>
+                            where T: Deref<Target=TargetOptions> {
+    let buf = json::encode(&*options).unwrap();
+    try!(options_file.set_len(0)
+         .map_err(|_| ManagerError::OptionsFileIO(
+                      SPIOError::Write(None))));
+    try!(options_file.write_all(buf.as_bytes())
+         .map_err(|_| ManagerError::OptionsFileIO(
+                      SPIOError::Write(None))));
+    Ok(())
+}
 
 impl TargetManager {
     pub fn new<'b>(kind: &'static TargetKind, data_path: &'b Path) -> Result<Self, ManagerError> {
@@ -156,16 +178,25 @@ impl TargetManager {
         path.pop();
         path.push(format!("{}.options.json", kind.compact_name()));
         let mut options_file = try!(OpenOptions::new().read(true).write(true).create(true)
-                                .open(&path)
+                                    .open(&path)
+                                    .map_err(|_| ManagerError::OptionsFileIO(
+                                                 SPIOError::Open(Some(path.clone())))));
+        let options_meta = try!(options_file.metadata()
                                 .map_err(|_| ManagerError::OptionsFileIO(
-                                             SPIOError::Open(Some(path.clone())))));
-        let mut options_buf = String::new();
-        try!(options_file.read_to_string(&mut options_buf)
-             .map_err(|_| ManagerError::OptionsFileIO(
-                          SPIOError::Read(Some(path.clone())))));
-        let options = try!(json::decode(&options_buf)
-                           .map_err(|_| ManagerError::OptionsFileIO(
-                                        SPIOError::Parse(Some(path.clone())))));
+                                             SPIOError::Metadata(Some(path.clone())))));
+        let options = if options_meta.len() > 0 {
+            let mut options_buf = String::new();
+            try!(options_file.read_to_string(&mut options_buf)
+                 .map_err(|_| ManagerError::OptionsFileIO(
+                              SPIOError::Read(Some(path.clone())))));
+            try!(json::decode(&options_buf)
+                 .map_err(|_| ManagerError::OptionsFileIO(
+                              SPIOError::Parse(Some(path.clone())))))
+        } else {
+            let default_options = kind.default_options();
+            try!(write_options_to_file(&default_options, &mut options_file));
+            default_options
+        };
 
         path.pop();
         path.push(format!("{}.index.json", kind.compact_name()));
@@ -176,6 +207,7 @@ impl TargetManager {
             kind: kind,
             index: RwLock::new(index),
             data_file: RwLock::new(data_file),
+            options_file: RwLock::new(options_file),
             options: RwLock::new(options),
         })
     }
@@ -188,15 +220,29 @@ impl TargetManager {
         self.options.write().unwrap()
     }
 
-    pub fn append_data(&mut self, data_res: TargetResults) {
+    pub fn append_data(&mut self, data_res: TargetResults) -> Result<(), ManagerError> {
         let mut data = data_res.0;
         let nonce = data.pop().unwrap();
         let options = self.options.read().unwrap();
         if nonce != options.nonce {
             println!("Nonce mismatch for data append");
-            return;
+            return Ok(());
         }
+
+        let mut out_data: Vec<i32> = Vec::with_capacity((data.len() - 1) * 3);
+        let time = data[0];
+        let index = self.index.read().unwrap();
+        for (addr, val) in self.options_read().addrs.iter().zip(data[1..].iter()) {
+            out_data.push(time);
+            out_data.push(index.get_index(addr));
+            out_data.push(*val);
+        }
+
         let ref mut file = *self.data_file.write().unwrap();
+        try!(file.write_all(&out_data.into_raw_bytes())
+             .map_err(|_| ManagerError::DataFileIO(
+                          SPIOError::Write(None))));
+        Ok(())
     }
 
     pub fn read_data_for_body(&self, nonce: i32, date_from: i32, date_to: i32) {
