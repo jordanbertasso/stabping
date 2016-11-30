@@ -8,6 +8,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::io::BufReader;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::ops::Deref;
 
 use memmap::{Mmap, Protection};
 
@@ -78,20 +79,24 @@ impl AddrIndex {
         })
     }
 
-    fn add_addr(&mut self, addr: String) -> Result<(), ManagerError> {
-        match self.map.entry(addr) {
-            Entry::Occupied(_) => {
-                // we already have it, so no need to make another index
-                Ok(())
-            },
-            Entry::Vacant(v) => {
-                self.data.push(v.key().clone());
-                v.insert(self.data.len() as i32);
-                Ok(try!(self.file.write_all(self.data.last().unwrap().as_bytes())
-                        .map_err(|_| ManagerError::IndexFileIO(
-                                     SPIOError::Write(None)))))
-            }
+    fn add_addr(&mut self, addr: &str) -> Result<(), ManagerError> {
+        if let None = self.map.get(addr) {
+            // only deal with it if we don't already have it
+            self.map.insert(addr.to_owned(), self.data.len() as i32);
+            self.data.push(addr.to_owned());
+            try!(self.file.write_all(self.data.last().unwrap().as_bytes())
+                 .map_err(|_| ManagerError::IndexFileIO(
+                              SPIOError::Write(None))));
         }
+        Ok(())
+    }
+
+    fn ensure_for_addrs<'a, I, K>(&mut self, addrs: I) -> Result<(), ManagerError>
+            where I: Iterator<Item=&'a K>, K: 'a + Deref<Target=str> {
+        for addr in addrs {
+            try!(self.add_addr(&addr));
+        }
+        Ok(())
     }
 
     fn get_index(&self, addr: &str) -> i32 {
@@ -146,7 +151,8 @@ impl TargetManager {
 
         path.pop();
         path.push(format!("{}.index.json", kind.compact_name()));
-        let index = try!(AddrIndex::from_path(&path));
+        let mut index = try!(AddrIndex::from_path(&path));
+        try!(index.ensure_for_addrs(options.addrs.iter()));
 
 
         Ok(TargetManager {
@@ -170,6 +176,7 @@ impl TargetManager {
             options_file.overwrite_json(&*guard)
             .map_err(|e| ManagerError::OptionsFileIO(e))
         );
+        try!(self.index.write().unwrap().ensure_for_addrs(guard.addrs.iter()));
         Ok(())
     }
 
