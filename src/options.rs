@@ -20,16 +20,15 @@ pub static SENTINEL_NODATA: i32 = -2_000_000_000;
 
 /*
  * Data for each address. Structured as:
- * [timestamp, datapoint1, datapoint2, ..., nonce]
+ * [kind, nonce, timestamp, datapoint1, datapoint2, ...]
  *
+ * where kind is the kind_id for the TargetKind this result is coming from
+ * where nonce determines the state of TargetOptions when these data were collected
  * where timestamp is in seconds from epoch,
  *
- * and each datapoint is for each address in TargetOptions.addrs
+ * each datapoint is for each address in TargetOptions.addrs
  * (encoding of data inside the i32 is target-defined, or one of the
  * sentinel values for error or nodata),
- *
- * and the nonce represents the state of TargetOptions when these data were
- * collected.
  */
 pub struct TargetResults(pub Vec<i32>);
 
@@ -41,6 +40,13 @@ pub enum TargetKind {
 static ALL_KINDS: [TargetKind; 1] = [TargetKind::TcpPing];
 
 impl TargetKind {
+    pub fn kind_id(&self) -> i32 {
+        match *self {
+            TargetKind::TcpPing => 0,
+            TargetKind::HttpDownload => 1
+        }
+    }
+
     pub fn compact_name(&self) -> &'static str {
         match *self {
             TargetKind::TcpPing => "tcpping",
@@ -92,5 +98,12 @@ impl Default for MainConfiguration {
             web_port: 5001,
             ws_port: 5002,
         }
+    }
+}
+
+#[test]
+fn ensure_kind_id_and_all_kinds_order_match() {
+    for (i, k) in ALL_KINDS.iter().enumerate() {
+        assert!(i as i32 == k.kind_id());
     }
 }

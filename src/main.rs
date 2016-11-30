@@ -28,7 +28,7 @@ use wsserver::Broadcaster;
 
 use helpers::{SPIOError, SPFile, VecIntoRawBytes};
 use options::{TargetKind, MainConfiguration};
-use persist::{TargetManager, ManagerError};
+use persist::ManagerError;
 
 static CONFIG_FILENAME: &'static str = "stabping_config.json";
 
@@ -111,6 +111,11 @@ fn main() {
     }
 
     for r in results {
+        let kind_id = r.0[0];
+        if let Err(e) = targets[kind_id as usize].append_data(&r) {
+            handle_fatal_error(e);
+        }
+
         let raw_data_bytes = r.0.into_raw_bytes();
         let _ = broadcaster.send(raw_data_bytes);
     }

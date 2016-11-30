@@ -1,8 +1,7 @@
 use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -84,7 +83,7 @@ impl AddrIndex {
             // only deal with it if we don't already have it
             self.map.insert(addr.to_owned(), self.data.len() as i32);
             self.data.push(addr.to_owned());
-            try!(self.file.write_all(self.data.last().unwrap().as_bytes())
+            try!(self.file.write_all(format!("{}\n", addr).as_bytes())
                  .map_err(|_| ManagerError::IndexFileIO(
                               SPIOError::Write(None))));
         }
@@ -180,18 +179,21 @@ impl TargetManager {
         Ok(())
     }
 
-    pub fn append_data(&mut self, data_res: TargetResults) -> Result<(), ManagerError> {
-        let mut in_data = data_res.0;
-        let nonce = in_data.pop().expect("Expecting nonce at end of TargetResults.");
+    pub fn append_data(&self, data_res: &TargetResults) -> Result<(), ManagerError> {
+        let ref in_data = data_res.0;
+
+        assert!(in_data[0] == self.kind.kind_id());
+
+        let nonce = in_data[1];
         if nonce != self.options_read().nonce {
             println!("Nonce mismatch for data append! Silently ignoring.");
             return Ok(());
         }
 
-        let mut out_data: Vec<i32> = Vec::with_capacity((in_data.len() - 1) * 3);
-        let time = in_data[0];
+        let mut out_data: Vec<i32> = Vec::with_capacity((in_data.len() - 3) * 3);
+        let time = in_data[2];
         let index = self.index.read().unwrap();
-        for (addr, val) in self.options_read().addrs.iter().zip(in_data[1..].iter()) {
+        for (addr, val) in self.options_read().addrs.iter().zip(in_data[3..].iter()) {
             out_data.push(time);
             out_data.push(index.get_index(addr));
             out_data.push(*val);

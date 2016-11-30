@@ -66,8 +66,10 @@ pub fn run_tcpping_worker(manager: Arc<TargetManager>,
 
             thread::sleep(dur_interval);
 
-            let mut data: Vec<i32> = Vec::with_capacity(1 + num_addrs + 1);
+            let mut data: Vec<i32> = Vec::with_capacity(2 + num_addrs);
 
+            data.push(manager.kind.kind_id());
+            data.push(nonce);
             data.push(timestamp);
 
             for h in handles.drain(..) {
@@ -78,8 +80,6 @@ pub fn run_tcpping_worker(manager: Arc<TargetManager>,
                     data.push(SENTINEL_ERROR);
                 }
             }
-
-            data.push(nonce);
 
             if results_out.send(TargetResults(data)).is_err() {
                 println!("Worker Control: failed to send final results back.");
