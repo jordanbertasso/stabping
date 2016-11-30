@@ -216,8 +216,12 @@ impl TargetManager {
         self.options.read().unwrap()
     }
 
-    pub fn options_write<'a>(&'a self) -> RwLockWriteGuard<'a, TargetOptions> {
-        self.options.write().unwrap()
+    pub fn options_update(&self, new_options: TargetOptions) -> Result<(), ManagerError> {
+        let mut guard = self.options.write().unwrap();
+        let mut options_file = self.options_file.write().unwrap();
+        *guard = new_options;
+        try!(write_options_to_file(guard, &mut options_file));
+        Ok(())
     }
 
     pub fn append_data(&mut self, data_res: TargetResults) -> Result<(), ManagerError> {
@@ -228,10 +232,10 @@ impl TargetManager {
             return Ok(());
         }
 
-        let mut out_data: Vec<i32> = Vec::with_capacity((data.len() - 1) * 3);
-        let time = data[0];
+        let mut out_data: Vec<i32> = Vec::with_capacity((in_data.len() - 1) * 3);
+        let time = in_data[0];
         let index = self.index.read().unwrap();
-        for (addr, val) in self.options_read().addrs.iter().zip(data[1..].iter()) {
+        for (addr, val) in self.options_read().addrs.iter().zip(in_data[1..].iter()) {
             out_data.push(time);
             out_data.push(index.get_index(addr));
             out_data.push(*val);
