@@ -221,11 +221,10 @@ impl TargetManager {
     }
 
     pub fn append_data(&mut self, data_res: TargetResults) -> Result<(), ManagerError> {
-        let mut data = data_res.0;
-        let nonce = data.pop().unwrap();
-        let options = self.options.read().unwrap();
-        if nonce != options.nonce {
-            println!("Nonce mismatch for data append");
+        let mut in_data = data_res.0;
+        let nonce = in_data.pop().expect("Expecting nonce at end of TargetResults.");
+        if nonce != self.options_read().nonce {
+            println!("Nonce mismatch for data append! Silently ignoring.");
             return Ok(());
         }
 
