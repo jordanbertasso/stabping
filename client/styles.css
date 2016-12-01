@@ -34,7 +34,7 @@ body {
     font-family: 'Fira Sans';
 }
 
-#tcpping_graph {
+.graph {
     width: 700px;
     height: 450px;
 }

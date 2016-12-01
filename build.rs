@@ -12,7 +12,7 @@ static ASSET_FILES: &'static [&'static str] = &[
     "node_modules/mozilla-fira-pack/Fira/woff/FiraSans-Light.woff",
     "node_modules/mozilla-fira-pack/Fira/woff/FiraSans-UltraLight.woff",
     "node_modules/dygraphs/dygraph-combined.js",
-    "node_modules/vue/dist/vue.min.js",
+    "node_modules/preact/dist/preact.min.js",
     "app.js",
     "styles.css",
     "index.html",

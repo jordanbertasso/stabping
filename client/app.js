@@ -1,115 +1,33 @@
+'use strict';
+
+const {h, render, Component} = window.preact;
+
 const SENTINEL_ERROR = -2100000000;
 const SENTINEL_NODATA = -2000000000;
 
-function dateAxisFormatter(epochSeconds, gran, opts) {
-    return Dygraph.dateAxisLabelFormatter(new Date(epochSeconds * 1000), gran, opts);
-}
-
-function dateFormatter(epochSeconds) {
-    return Dygraph.dateString_(epochSeconds * 1000);
-}
-
-function TargetGraph(divId, valFormatter) {
-    var gvFormatter = function(val, opts, seriesName) {
-        if (seriesName == "Time") {
-            return dateFormatter(val);
-        } else if (val == SENTINEL_ERROR) {
-            return "Error/timeout";
-        } else if (val == SENTINEL_NODATA) {
-            return "No Data";
-        } else {
-            return valFormatter(val);
+class SPSocket {
+    constructor(port, cb, interval) {
+        if (!interval) {
+            interval = 20000;
         }
-    };
 
-    this.valRange = [0, null];
+        this.addr = 'ws://' + window.location.hostname + ':' + port;
+        this.socket = this.newSocket(cb);
 
-    this.graph = new Dygraph(
-        document.getElementById(divId),
-        [[0]],
-        {
-            valueFormatter: gvFormatter,
-            valueRange: this.valRange,
-            axes: {
-                x: {
-                    axisLabelFormatter: dateAxisFormatter
-                },
-                y: {
-                    axisLabelFormatter: gvFormatter
-                }
-            },
-            animatedZooms: true,
-            isZoomedIgnoreProgrammaticZoom: true,
-            zoomCallback: function (lowerDate, upperDate, yRanges) {
-                if (!this.graph.isZoomed()) {
-                    this._updateDrawnGraph();
-                }
-            }.bind(this)
-        }
-    );
-
-    this.data = null;
-    this.labels = ["Time"];
-}
-
-TargetGraph.prototype._updateDrawnGraph = function() {
-    this.graph.updateOptions({
-        isZoomedIgnoreProgrammaticZoom: true,
-        valueRange: this.valRange,
-        file: this.data
-    });
-}
-
-TargetGraph.prototype.update = function(buf) {
-    if (!this.data) {
-        this.data = [];
+        setInterval(function() {
+            if (this.socket.readyState > 1) {
+                console.log('Reconnecting WebSocket...');
+                this.socket = this.newSocket(cb);
+            }
+        }.bind(this), interval);
     }
 
-    var new_data = new Int32Array(buf);
-    this.data.push(new_data);
-
-    var curMax = this.valRange[1];
-    for (var i = 1; i < new_data.length; i++) {
-        if (new_data[i] > curMax) {
-            curMax = new_data[i];
-        }
+    newSocket(cb) {
+        var socket = new WebSocket(this.addr);
+        socket.binaryType = 'arraybuffer';
+        socket.onmessage = cb;
+        return socket;
     }
-    this.valRange[1] = curMax;
-
-    if (!this.graph.isZoomed()) {
-        this._updateDrawnGraph();
-    }
-}
-
-TargetGraph.prototype.setSeriesLabels = function(labels) {
-    this.labels.length = 1;
-    this.labels.push.apply(this.labels, labels);
-    this.graph.updateOptions({
-        labels: this.labels
-    });
-}
-
-
-function SPSocket(addr, cb, interval) {
-    if (!interval) {
-        interval = 20000;
-    }
-
-    this.socket = this.newSocket(addr, cb);
-
-    setInterval(function() {
-        if (this.socket.readyState > 1) {
-            console.log("Reconnecting WebSocket...");
-            this.socket = this.newSocket(addr, cb);
-        }
-    }.bind(this), interval);
-}
-
-SPSocket.prototype.newSocket = function(addr, cb) {
-    var socket = new WebSocket(addr);
-    socket.binaryType = "arraybuffer";
-    socket.onmessage = cb;
-    return socket;
 }
 
 function ajax(method, dest, type, cb) {
@@ -124,22 +42,156 @@ function ajax(method, dest, type, cb) {
     req.send();
 }
 
-var graphs = [
-    new TargetGraph("tcpping_graph",
-        function(val) {
-            return (val / 1000).toFixed() + " ms";
+function dateAxisFormatter(epochSeconds, gran, opts) {
+    return Dygraph.dateAxisLabelFormatter(new Date(epochSeconds * 1000), gran, opts);
+}
+
+function dateFormatter(epochSeconds) {
+    return Dygraph.dateString_(epochSeconds * 1000);
+}
+
+class Graph extends Component {
+    constructor() {
+        super();
+        this.graph = null;
+    }
+
+    componentDidMount() {
+        var gvFormatter = function(val, opts, seriesName) {
+            if (seriesName == 'Time') {
+                return dateFormatter(val);
+            } else if (val == SENTINEL_ERROR) {
+                return 'Error/timeout';
+            } else if (val == SENTINEL_NODATA) {
+                return 'No Data';
+            } else {
+                return this.props.valFormatter(val);
+            }
+        }.bind(this);
+
+        this.graph = new Dygraph(
+            document.getElementById('graph_' + this.props.kind),
+            [[0]],
+            {
+                valueFormatter: gvFormatter,
+                valueRange: [0, null],
+                axes: {
+                    x: {
+                        axisLabelFormatter: dateAxisFormatter
+                    },
+                    y: {
+                        axisLabelFormatter: gvFormatter
+                    }
+                },
+                animatedZooms: true,
+                isZoomedIgnoreProgrammaticZoom: true,
+                zoomCallback: function (lowerDate, upperDate, yRanges) {
+                    if (!this.graph.isZoomed()) {
+                        this.updateDrawnGraph();
+                    }
+                }.bind(this)
+            }
+        );
+    }
+
+    updateDrawnGraph() {
+        console.log('updateDrawnGraph() called.');
+        this.graph.updateOptions({
+            labels: ['Time'].concat(this.props.options.addrs),
+            isZoomedIgnoreProgrammaticZoom: true,
+            valueRange: [0, this.props.max],
+            file: this.props.data
+        });
+    }
+
+    update() {
+        if (this.graph && !this.graph.isZoomed()) {
+            this.updateDrawnGraph();
         }
-    )
-]
+    }
 
-ajax("GET", "/api/options", "json", function(res) {
-    console.log("Fetched option from /api/options.");
-    graphs[0].setSeriesLabels(res.tcpping_options.addrs);
-});
+    shouldComponentUpdate() {
+        return this.graph == null;
+    }
 
-ajax("GET", "/api/config/ws_port", "text", function(port_str) {
-    new SPSocket("ws://" + window.location.hostname +
-                 ":" + parseInt(port_str, 10), function(message) {
-        graphs[0].update(message.data);
-    });
-});
+    render() {
+        return h('div', {
+            id: 'graph_' + this.props.kind,
+            className: 'graph'
+        });
+    }
+}
+
+class Target extends Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            options: {},
+            max: null
+        };
+    }
+
+    componentDidMount() {
+        ajax('GET', '/api/target/' + this.props.kind, 'json', function(res) {
+            console.log('Fetched option for: ' + this.props.kind);
+            this.setState({
+                options: res
+            });
+        }.bind(this));
+    }
+
+    render() {
+        return h('div', null, [
+            h(Graph, {
+                ref: (g) => {
+                    g.update();
+                },
+                kind: this.props.kind,
+                valFormatter: this.props.valFormatter,
+                data: this.data,
+                options: this.state.options,
+                max: this.state.max
+            })
+        ]);
+    }
+
+    liveDataUpdate(arr) {
+        if (!this.data) {
+            this.data = [];
+        }
+
+        this.data.push(arr);
+
+        var curMax = this.max;
+        for (var i = 1; i < new_data.length; i++) {
+            if (new_data[i] > curMax) {
+                curMax = new_data[i];
+            }
+        }
+        this.max = curMax;
+    }
+}
+
+class App extends Component {
+    handleSocketMessage(message) {
+        var buf = message.data;
+        console.log('Received WebSockets message.');
+    }
+
+    componentDidMount() {
+        ajax('GET', '/api/config/ws_port', 'text', function(port_str) {
+            new SPSocket(port_str, this.handleSocketMessage);
+        }.bind(this));
+    }
+
+    render() {
+        return h(Target, {
+            kind: 'tcpping',
+            valFormatter: function(val) {
+                return (val / 1000).toFixed() + " ms";
+            }
+        });
+    }
+}
+
+render(h(App), document.getElementById('app'));
