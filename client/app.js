@@ -4,7 +4,22 @@ const {h, render, Component} = window.preact;
 
 const SENTINEL_ERROR = -2100000000;
 const SENTINEL_NODATA = -2000000000;
-const TARGET_KINDS = ['tcpping', 'httpdownload'];
+const TARGET_KINDS = [
+    {
+        name: 'tcpping',
+        valFormatter: function(val) {
+            return (val / 1000).toFixed() + ' ms';
+        }
+    }
+    /*
+    {
+        name: 'httpdownload',
+        valFormatter: function(val) {
+            return 'NOT YET IMPLEMENTED';
+        }
+    }
+    */
+];
 
 class SPSocket {
     constructor(port, cb, interval) {
@@ -95,7 +110,7 @@ class Graph extends Component {
 
     update() {
         if (this.graph && !this.graph.isZoomed()) {
-            console.log('Graph.update() executing actual update.');
+            console.log('Graph.update() executing actual update for ' + this.props.kind);
             this.graph.updateOptions({
                 labels: ['Time'].concat(this.props.options.addrs),
                 isZoomedIgnoreProgrammaticZoom: true,
@@ -152,10 +167,11 @@ class Target extends Component {
 
     liveDataUpdate(nonce, arr) {
         if (nonce != this.state.options.nonce) {
-            console.log("Mismatched nonce!");
+            console.log('Mismatched nonce! I have ' + this.state.options.nonce +
+                        ' but this new one is ' + nonce);
+            console.log(arr);
         }
 
-        console.log(arr);
         if (!this.data) {
             this.data = [];
         }
@@ -163,7 +179,7 @@ class Target extends Component {
         this.data.push(arr);
 
         var curMax = this.state.max;
-        for (var i = 1; i < arr.length; i++) {
+        for (let i = 1; i < arr.length; i++) {
             if (arr[i] > curMax) {
                 curMax = arr[i];
             }
@@ -178,18 +194,17 @@ class Target extends Component {
 class App extends Component {
     constructor() {
         super();
-        this.targets = {};
+        this.targets = new Array(TARGET_KINDS.length);
     }
 
     handleSocketMessage(message) {
-        console.log('Received WebSockets message.');
         var buf = message.data;
         var raw = new Int32Array(buf);
 
         var kind_id = raw[0];
         var nonce = raw[1];
         var arr = raw.slice(2);
-        this.targets[TARGET_KINDS[kind_id]].liveDataUpdate(nonce, arr);
+        this.targets[kind_id].liveDataUpdate(nonce, arr);
     }
 
     componentDidMount() {
@@ -199,15 +214,20 @@ class App extends Component {
     }
 
     render() {
-        return h(Target, {
-            ref: (t) => {
-                this.targets['tcpping'] = t;
-            },
-            kind: 'tcpping',
-            valFormatter: function(val) {
-                return (val / 1000).toFixed() + " ms";
-            }
-        });
+        var target_components = [];
+
+        for (let i = 0; i < TARGET_KINDS.length; i++) {
+            let kind = TARGET_KINDS[i];
+            target_components.push(h(Target, {
+                ref: (t) => {
+                    this.targets[i] = t;
+                },
+                kind: kind.name,
+                valFormatter: kind.valFormatter
+            }));
+        }
+
+        return h('div', null, target_components);
     }
 }
 
