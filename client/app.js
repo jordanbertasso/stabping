@@ -4,6 +4,7 @@ const {h, render, Component} = window.preact;
 
 const SENTINEL_ERROR = -2100000000;
 const SENTINEL_NODATA = -2000000000;
+const TARGET_KINDS = ['tcpping', 'httpdownload'];
 
 class SPSocket {
     constructor(port, cb, interval) {
@@ -86,27 +87,21 @@ class Graph extends Component {
                 animatedZooms: true,
                 isZoomedIgnoreProgrammaticZoom: true,
                 zoomCallback: function (lowerDate, upperDate, yRanges) {
-                    if (!this.graph.isZoomed()) {
-                        this.updateDrawnGraph();
-                    }
+                    this.update();
                 }.bind(this)
             }
         );
     }
 
-    updateDrawnGraph() {
-        console.log('updateDrawnGraph() called.');
-        this.graph.updateOptions({
-            labels: ['Time'].concat(this.props.options.addrs),
-            isZoomedIgnoreProgrammaticZoom: true,
-            valueRange: [0, this.props.max],
-            file: this.props.data
-        });
-    }
-
     update() {
         if (this.graph && !this.graph.isZoomed()) {
-            this.updateDrawnGraph();
+            console.log('Graph.update() executing actual update.');
+            this.graph.updateOptions({
+                labels: ['Time'].concat(this.props.options.addrs),
+                isZoomedIgnoreProgrammaticZoom: true,
+                valueRange: [0, this.props.max + 2],
+                file: this.props.data
+            });
         }
     }
 
@@ -155,37 +150,59 @@ class Target extends Component {
         ]);
     }
 
-    liveDataUpdate(arr) {
+    liveDataUpdate(nonce, arr) {
+        if (nonce != this.state.options.nonce) {
+            console.log("Mismatched nonce!");
+        }
+
+        console.log(arr);
         if (!this.data) {
             this.data = [];
         }
 
         this.data.push(arr);
 
-        var curMax = this.max;
-        for (var i = 1; i < new_data.length; i++) {
-            if (new_data[i] > curMax) {
-                curMax = new_data[i];
+        var curMax = this.state.max;
+        for (var i = 1; i < arr.length; i++) {
+            if (arr[i] > curMax) {
+                curMax = arr[i];
             }
         }
-        this.max = curMax;
+
+        this.setState({
+            max: curMax
+        });
     }
 }
 
 class App extends Component {
+    constructor() {
+        super();
+        this.targets = {};
+    }
+
     handleSocketMessage(message) {
-        var buf = message.data;
         console.log('Received WebSockets message.');
+        var buf = message.data;
+        var raw = new Int32Array(buf);
+
+        var kind_id = raw[0];
+        var nonce = raw[1];
+        var arr = raw.slice(2);
+        this.targets[TARGET_KINDS[kind_id]].liveDataUpdate(nonce, arr);
     }
 
     componentDidMount() {
         ajax('GET', '/api/config/ws_port', 'text', function(port_str) {
-            new SPSocket(port_str, this.handleSocketMessage);
+            new SPSocket(port_str, this.handleSocketMessage.bind(this));
         }.bind(this));
     }
 
     render() {
         return h(Target, {
+            ref: (t) => {
+                this.targets['tcpping'] = t;
+            },
             kind: 'tcpping',
             valFormatter: function(val) {
                 return (val / 1000).toFixed() + " ms";
