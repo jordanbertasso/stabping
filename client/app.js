@@ -86,7 +86,7 @@ class Graph extends Component {
         }.bind(this);
 
         this.graph = new Dygraph(
-            document.getElementById('graph_' + this.props.kind),
+            this.base,
             [[0]],
             {
                 valueFormatter: gvFormatter,
@@ -121,12 +121,11 @@ class Graph extends Component {
     }
 
     shouldComponentUpdate() {
-        return this.graph == null;
+        return false;
     }
 
     render() {
         return h('div', {
-            id: 'graph_' + this.props.kind,
             className: 'graph'
         });
     }
@@ -231,4 +230,4 @@ class App extends Component {
     }
 }
 
-render(h(App), document.getElementById('app'));
+render(h(App), document.body);
