@@ -46,7 +46,7 @@ class SPSocket {
     }
 }
 
-function ajax(method, dest, type, cb) {
+function ajax(method, dest, type, cb, data) {
     var req = new XMLHttpRequest();
     req.responseType = type;
     req.open(method, dest, true);
@@ -55,7 +55,7 @@ function ajax(method, dest, type, cb) {
             cb(req.response);
         }
     }
-    req.send();
+    req.send(data);
 }
 
 function dateAxisFormatter(epochSeconds, gran, opts) {
@@ -149,6 +149,22 @@ class Target extends Component {
         }.bind(this));
     }
 
+    buttonClicked() {
+        console.log(this.props.kind + " button was clicked!");
+        ajax('POST', '/api/target/' + this.props.kind, 'arraybuffer', function(res) {
+            console.log('Got response!');
+            console.log(res);
+            var arr = new Int32Array(res);
+            for (let i = 0; i < arr.length; i += 3) {
+                console.log(arr[i] + ' ' + arr[i+1] + ' ' + arr[i+2]);
+            }
+        }.bind(this), JSON.stringify({
+            lower: 0,
+            upper: 1480655190,
+            nonce: this.state.options.nonce,
+        }))
+    }
+
     render() {
         return h('div', null, [
             h(Graph, {
@@ -160,7 +176,10 @@ class Target extends Component {
                 data: this.data,
                 options: this.state.options,
                 max: this.state.max
-            })
+            }),
+            h('button', {
+                onClick: this.buttonClicked.bind(this),
+            }, ['Click Me!'])
         ]);
     }
 
