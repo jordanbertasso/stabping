@@ -4,15 +4,16 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::fs::OpenOptions;
 use std::fs::File;
+use std::io;
 use std::io::{Read, Write};
 use std::io::BufReader;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::ops::Deref;
-
-use memmap::{Mmap, Protection};
+use std::iter;
+use std::iter::Extend;
 
 use helpers::{SPIOError, SPFile, VecIntoRawBytes};
-use options::{TargetKind, TargetOptions, TargetResults};
+use options::{TargetKind, TargetOptions, TargetResults, SENTINEL_NODATA};
 
 #[derive(Debug)]
 pub enum ManagerError {
@@ -105,6 +106,10 @@ impl AddrIndex {
     fn get_addr(&self, index: i32) -> &String {
         self.data.get(index as usize).expect("Non-existant index requested from AddrIndex!")
     }
+
+    fn len(&self) -> usize {
+        self.data.len()
+    }
 }
 
 pub struct TargetManager {
@@ -179,6 +184,10 @@ impl TargetManager {
         Ok(())
     }
 
+    pub fn data_file_read<'a>(&'a self) -> RwLockReadGuard<'a, File> {
+        self.data_file.read().unwrap()
+    }
+
     pub fn append_data(&self, data_res: &TargetResults) -> Result<(), ManagerError> {
         let ref in_data = data_res.0;
 
@@ -206,7 +215,34 @@ impl TargetManager {
         Ok(())
     }
 
-    pub fn read_data_for_body(&self, nonce: i32, date_from: i32, date_to: i32) {
+    /**
+     * Get the current addrs in options as (nonce, ordered_list, membership)
+     * where 'ordered_list' is the list of address indices in order in which
+     * they appear in options, and where 'membership' is the set of indices
+     * present (i.e. if membership[i] != 0, then the addr with index i is
+     * currently present in options).
+     */
+    pub fn get_current_indices(&self) -> (i32, Vec<i32>, Vec<i32>) {
+        let options = self.options_read();
 
+        let index = self.index.read().unwrap();
+
+        let mut ordered_list = Vec::with_capacity(options.addrs.len());
+
+        let mut membership = {
+            let len = index.len();
+            let mut v = Vec::with_capacity(len);
+            v.extend(iter::repeat(0).take(len));
+            v
+        };
+
+        for addr in options.addrs.iter() {
+            let i = index.get_index(addr);
+            ordered_list.push(i);
+            membership[i as usize] = SENTINEL_NODATA;
+        }
+
+        (options.nonce, ordered_list, membership)
     }
 }
+

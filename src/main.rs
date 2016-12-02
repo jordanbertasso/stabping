@@ -10,6 +10,7 @@ extern crate mount;
 mod helpers;
 mod options;
 mod persist;
+mod reader;
 mod webserver;
 mod wsserver;
 mod tcpping;
