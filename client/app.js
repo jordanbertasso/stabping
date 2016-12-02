@@ -7,6 +7,7 @@ const SENTINEL_NODATA = -2000000000;
 const TARGET_KINDS = [
     {
         name: 'tcpping',
+        pretty_name: 'TCP Ping',
         valFormatter: function(val) {
             return (val / 1000).toFixed() + ' ms';
         }
@@ -14,6 +15,7 @@ const TARGET_KINDS = [
     /*
     {
         name: 'httpdownload',
+        pretty_name: 'HTTP Download',
         valFormatter: function(val) {
             return 'NOT YET IMPLEMENTED';
         }
@@ -46,13 +48,21 @@ class SPSocket {
     }
 }
 
-function ajax(method, dest, type, cb, data) {
+function ajax(method, dest, type, success, error, data) {
     var req = new XMLHttpRequest();
     req.responseType = type;
     req.open(method, dest, true);
     req.onreadystatechange = function() {
-        if (req.readyState == 4 && req.status == 200) {
-            cb(req.response);
+        if (req.readyState == 4) {
+            if (req.status == 200) {
+                if (success) {
+                    success(req.response);
+                }
+            } else {
+                if (error) {
+                    error(req);
+                }
+            }
         }
     }
     req.send(data);
@@ -110,7 +120,7 @@ class Graph extends Component {
 
     update() {
         if (this.graph && !this.graph.isZoomed()) {
-            console.log('Graph.update() executing actual update for ' + this.props.kind);
+            console.log('Graph.update() executing actual update for ' + this.props.kind.name);
             this.graph.updateOptions({
                 labels: ['Time'].concat(this.props.options.addrs),
                 isZoomedIgnoreProgrammaticZoom: true,
@@ -141,32 +151,19 @@ class Target extends Component {
     }
 
     componentDidMount() {
-        ajax('GET', '/api/target/' + this.props.kind, 'json', function(res) {
-            console.log('Fetched option for: ' + this.props.kind);
+        ajax('GET', '/api/target/' + this.props.kind.name, 'json', function(res) {
+            console.log('Fetched option for: ' + this.props.kind.name);
             this.setState({
                 options: res
             });
         }.bind(this));
     }
 
-    buttonClicked() {
-        console.log(this.props.kind + " button was clicked!");
-        ajax('POST', '/api/target/' + this.props.kind, 'arraybuffer', function(res) {
-            console.log('Got response!');
-            console.log(res);
-            var arr = new Int32Array(res);
-            for (let i = 0; i < arr.length; i += 3) {
-                console.log(arr[i] + ' ' + arr[i+1] + ' ' + arr[i+2]);
-            }
-        }.bind(this), JSON.stringify({
-            lower: 0,
-            upper: 1480655190,
-            nonce: this.state.options.nonce,
-        }))
-    }
-
     render() {
-        return h('div', null, [
+        return h('div', {
+            className: 'graph-container'
+        }, [
+            h('h2', null, [this.props.kind.pretty_name]),
             h(Graph, {
                 ref: (g) => {
                     g.update();
@@ -177,9 +174,14 @@ class Target extends Component {
                 options: this.state.options,
                 max: this.state.max
             }),
-            h('button', {
-                onClick: this.buttonClicked.bind(this),
-            }, ['Click Me!'])
+            h('div', {
+                className: 'graph-controls'
+            }, [
+                h('select', {
+
+                }),
+                h('div', null, ['Hello World!'])
+            ])
         ]);
     }
 
@@ -240,7 +242,7 @@ class App extends Component {
                 ref: (t) => {
                     this.targets[i] = t;
                 },
-                kind: kind.name,
+                kind: kind,
                 valFormatter: kind.valFormatter
             }));
         }
