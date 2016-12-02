@@ -94,6 +94,7 @@ impl Handler for TargetHandler {
         match req.method {
             Method::Get => {
                 // retrieve options
+                println!("Request for {} options.", self.manager.kind.compact_name());
                 let options_ser = {
                     let options_guard = self.manager.options_read();
                     json::encode(&*options_guard).unwrap()
@@ -105,6 +106,7 @@ impl Handler for TargetHandler {
                 let mut buf = String::new();
                 req.body.read_to_string(&mut buf);
                 if let Ok(dr) = json::decode::<DataRequest>(&buf) {
+                    println!("Request for {} data: {:?}", self.manager.kind.compact_name(), dr);
                     if let Some(body_writer) = SPDataReader::new(self.manager.clone(), dr) {
                         let r = Response::with((status::Ok));
                         Ok(Response {
@@ -114,9 +116,11 @@ impl Handler for TargetHandler {
                             body: Some(Box::new(body_writer)),
                         })
                     } else {
+                        println!("Failed to create SPDataReader.");
                         Err(IronError::new(SPWebError::BadRequest, status::BadRequest))
                     }
                 } else {
+                    println!("Failed to parse request for {} data.", self.manager.kind.compact_name());
                     Err(IronError::new(SPWebError::BadRequest, status::BadRequest))
                 }
             },

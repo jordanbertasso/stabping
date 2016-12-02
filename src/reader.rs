@@ -11,7 +11,7 @@ use helpers::VecIntoRawBytes;
 use persist::{TargetManager, ManagerError};
 use options::SENTINEL_NODATA;
 
-#[derive(RustcEncodable, RustcDecodable)]
+#[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct DataRequest {
     nonce: i32,
     lower: i32,
