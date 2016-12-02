@@ -72,8 +72,18 @@ function currentTime() {
     return Math.floor(new Date() / 1000);
 }
 
+var timeLoaded = currentTime();
 function hoursBack(hours) {
-    return currentTime() - (hours * 3600);
+    if (hours == -2) {
+        // All
+        return 0;
+    } else if (hours == -1) {
+        // Since Load
+        return timeLoaded;
+    } else {
+        // Some number of hours
+        return currentTime() - (hours * 3600);
+    }
 }
 
 function dateAxisFormatter(epochSeconds, gran, opts) {
@@ -129,10 +139,14 @@ class Graph extends Component {
     update() {
         if (this.graph && !this.graph.isZoomed()) {
             console.log('Graph.update() executing actual update for ' + this.props.kind.name);
+            var h = hoursBack(this.props.preset);
+            var dateWindow = h == 0 ? null : [h, this.props.data.slice(-1)[0][0]];
+
             this.graph.updateOptions({
                 labels: ['Time'].concat(this.props.options.addrs),
                 isZoomedIgnoreProgrammaticZoom: true,
                 valueRange: [0, this.props.max + 2],
+                dateWindow: dateWindow,
                 file: this.props.data
             });
         }
@@ -188,7 +202,6 @@ class Target extends Component {
             ajax('POST', '/api/target/' + this.props.kind.name, 'arraybuffer', function(res) {
                 if (nonce == this.state.options.nonce) {
                     var raw = new Int32Array(res);
-                    leftLimit = raw[0];
                     var newData = [];
 
                     var curMax = this.state.max;
@@ -211,7 +224,7 @@ class Target extends Component {
                     console.log(this.data);
                     this.setState({
                         max: curMax,
-                        leftLimit: leftLimit
+                        leftLimit: leftTarget
                     });
                 } else {
                     console.log('Mismatched nonce in persistent data retrieve!');
@@ -250,7 +263,8 @@ class Target extends Component {
                 valFormatter: this.props.valFormatter,
                 data: this.data,
                 options: this.state.options,
-                max: this.state.max
+                max: this.state.max,
+                preset: this.state.preset
             }),
             h('div', {
                 className: 'graph-controls'
@@ -261,8 +275,10 @@ class Target extends Component {
                         value: this.state.preset,
                         onChange: this.onPresetChange.bind(this)
                     }, [
-                        h('option', {value: 0}, 'Since Load'),
-                        h('option', {value: 1}, '1 Hours'),
+                        h('option', {value: -1}, 'Since Load'),
+                        h('option', {value: 0.25}, '15 Minutes'),
+                        h('option', {value: 0.5}, '30 Minutes'),
+                        h('option', {value: 1}, '1 Hour'),
                         h('option', {value: 3}, '3 Hours'),
                         h('option', {value: 6}, '6 Hours'),
                         h('option', {value: 12}, '12 Hours'),
@@ -271,7 +287,7 @@ class Target extends Component {
                         h('option', {value: 168}, '1 Week'),
                         h('option', {value: 336}, '2 Weeks'),
                         h('option', {value: 744}, '1 Month'),
-                        h('option', {value: -1}, 'All*')
+                        h('option', {value: -2}, 'All*')
                     ])
                 ]),
                 h('div', {className: 'control-group'}, [
