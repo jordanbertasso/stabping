@@ -37,6 +37,31 @@ body {
     overflow: hidden;
 }
 
+select {
+    background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAMAAACzvE1FAAAADFBMVEUzMzMzMzMzMzMzMzMKAG/3AAAAA3RSTlMAf4C/aSLHAAAAPElEQVR42q3NMQ4AIAgEQTn//2cLdRKppSGzBYwzVXvznNWs8C58CiussPJj8h6NwgorrKRdTvuV9v16Afn0AYFOB7aYAAAAAElFTkSuQmCC) right 6px center/9px 12px no-repeat #fff;
+    appearance: none;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    border-style: solid;
+    border-width: 1.2px;
+    border-radius: 3px;
+    border-color: rgba(0, 0, 0, 0.16);
+    min-width: 250px;
+    height: 35px;
+    font-family: 'Fira Sans';
+    font-size: 16px;
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
+.label {
+    margin-bottom: 10px;
+}
+
+.control-group {
+    margin-bottom: 10px;
+}
+
 .header {
     height: 50px;
     width: 100%;
@@ -67,7 +92,7 @@ body {
 
 .graph {
     display: inline-block;
-    width: calc(100% - 400px);
+    width: calc(100% - 380px);
     height: 390px;
 }
 
@@ -84,7 +109,7 @@ body {
 
 @media (max-width: 1400px) {
     .graph {
-        width: 66%;
+        width: 68%;
     }
 }
 
@@ -94,7 +119,7 @@ body {
         width: calc(100% - 36px);
     }
     .graph {
-        width: calc(100% - 280px)
+        width: calc(100% - 270px)
     }
 }
 

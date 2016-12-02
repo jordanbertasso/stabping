@@ -146,7 +146,9 @@ class Target extends Component {
         super(props);
         this.state = {
             options: {},
-            max: null
+            max: null,
+            preset: 24,
+            rollingSelection: 0
         };
     }
 
@@ -157,6 +159,16 @@ class Target extends Component {
                 options: res
             });
         }.bind(this));
+    }
+
+    onPresetChange(evt) {
+        console.log('preset is now: ' + evt.target.value);
+        this.setState({preset: evt.target.value});
+    }
+
+    onRollingSelectionChange(evt) {
+        console.log('rollingSelection is now: ' + evt.target.value);
+        this.setState({rollingSelection: evt.target.value});
     }
 
     render() {
@@ -177,10 +189,42 @@ class Target extends Component {
             h('div', {
                 className: 'graph-controls'
             }, [
-                h('select', {
-
-                }),
-                h('div', null, ['Hello World!'])
+                h('div', {className: 'control-group'}, [
+                    h('div', {className: 'label'}, 'Base Time Interval'),
+                    h('select', {
+                        value: this.state.preset,
+                        onChange: this.onPresetChange.bind(this)
+                    }, [
+                        h('option', {value: 12}, '12 Hours'),
+                        h('option', {value: 24}, '1 Day'),
+                        h('option', {value: 72}, '3 Days'),
+                        h('option', {value: 168}, '1 Week'),
+                        h('option', {value: 336}, '2 Weeks'),
+                        h('option', {value: 744}, '1 Month'),
+                        h('option', {value: -1}, 'All*')
+                    ])
+                ]),
+                h('div', {className: 'control-group'}, [
+                    h('div', {className: 'label'}, 'Rolling Average'),
+                    h('select', {
+                        value: this.state.rollingSelection,
+                        onChange: this.onRollingSelectionChange.bind(this)
+                    }, [
+                        h('option', {value: 0}, 'None'),
+                        h('option', {value: 1}, '1 Day'),
+                        h('option', {value: 2}, '2 Days'),
+                        h('option', {value: 3}, '3 Days'),
+                        h('option', {value: 7}, '1 Week'),
+                        h('option', {value: -1}, 'Custom')
+                    ])
+                ]),
+                h('div', {className: 'control-group'}, [
+                    h('div', {className: 'label'}, 'View Options'),
+                    h('span', null, [
+                        h('input', {type: 'checkbox'}),
+                        'Checkbox'
+                    ])
+                ])
             ])
         ]);
     }
