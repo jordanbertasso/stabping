@@ -73,7 +73,7 @@ impl WriteBody for SPDataReader {
             let begin = match data.binary_search_by_key(&self.lower, |d| d.time) {
                 Ok(mut i) => {
                     while i >= 0 && data[i].time == self.lower {
-                        i += 1;
+                        i -= 1;
                     }
                     i
                 },
@@ -89,7 +89,6 @@ impl WriteBody for SPDataReader {
                 },
                 Err(i) => i
             };
-
 
             let mut writer = BufWriter::new(res);
 
