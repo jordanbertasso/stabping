@@ -11,6 +11,13 @@ use helpers::VecIntoRawBytes;
 use persist::{TargetManager, ManagerError};
 use options::SENTINEL_NODATA;
 
+#[derive(RustcEncodable, RustcDecodable)]
+pub struct DataRequest {
+    nonce: i32,
+    lower: i32,
+    upper: i32,
+}
+
 #[repr(C, packed)]
 struct DataElement {
     time: i32,
@@ -25,14 +32,14 @@ pub struct SPDataReader {
 }
 
 impl SPDataReader {
-    fn new(tm: Arc<TargetManager>, nonce: i32, lower: i32, upper: i32) -> Option<Self> {
-        if nonce != tm.options_read().nonce {
+    pub fn new(tm: Arc<TargetManager>, dr: DataRequest) -> Option<Self> {
+        if dr.nonce != tm.options_read().nonce {
             return None;
         }
 
         Some(SPDataReader{
-            lower: lower,
-            upper: upper,
+            lower: dr.lower,
+            upper: dr.upper,
             tm: tm,
         })
     }

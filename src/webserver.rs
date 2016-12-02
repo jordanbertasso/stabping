@@ -1,6 +1,7 @@
 use std::thread;
 use std::error::Error;
 use std::fmt;
+use std::io::Read;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -16,6 +17,7 @@ use mount::Mount;
 
 use rustc_serialize::json;
 
+use reader::{SPDataReader, DataRequest};
 use persist::{TargetManager, ManagerError};
 use options::MainConfiguration;
 
@@ -24,6 +26,7 @@ enum SPWebError {
     NotFound,
     InvalidMethod,
     NotImplemented,
+    BadRequest,
 }
 
 impl Error for SPWebError {
@@ -32,6 +35,7 @@ impl Error for SPWebError {
             SPWebError::NotFound => "Resource not found.",
             SPWebError::InvalidMethod => "Invalid method.",
             SPWebError::NotImplemented => "Handler not yet implemented.",
+            SPWebError::BadRequest => "Bad request (malformed or missing fields).",
         }
     }
 }
@@ -89,6 +93,7 @@ impl Handler for TargetHandler {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
         match req.method {
             Method::Get => {
+                // retrieve options
                 let options_ser = {
                     let options_guard = self.manager.options_read();
                     json::encode(&*options_guard).unwrap()
@@ -96,7 +101,27 @@ impl Handler for TargetHandler {
                 Ok(Response::with((status::Ok, options_ser)))
             },
             Method::Post => {
-                // TODO
+                // retrieve data
+                let mut buf = String::new();
+                req.body.read_to_string(&mut buf);
+                if let Ok(dr) = json::decode::<DataRequest>(&buf) {
+                    if let Some(body_writer) = SPDataReader::new(self.manager.clone(), dr) {
+                        let r = Response::with((status::Ok));
+                        Ok(Response {
+                            status: r.status,
+                            headers: r.headers,
+                            extensions: r.extensions,
+                            body: Some(Box::new(body_writer)),
+                        })
+                    } else {
+                        Err(IronError::new(SPWebError::BadRequest, status::BadRequest))
+                    }
+                } else {
+                    Err(IronError::new(SPWebError::BadRequest, status::BadRequest))
+                }
+            },
+            Method::Put => {
+                // update options
                 Err(IronError::new(SPWebError::NotImplemented, status::NotImplemented))
             },
             _ => Err(IronError::new(SPWebError::InvalidMethod, status::MethodNotAllowed))
