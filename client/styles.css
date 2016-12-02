@@ -32,7 +32,7 @@
 
 body {
     font-family: 'Fira Sans';
-    color: #444444;
+    color: #484048;
     margin: 0;
     overflow: hidden;
 }
@@ -41,14 +41,14 @@ body {
     height: 50px;
     width: 100%;
     background-color: #f9f9f9;
-    margin-bottom: 20px;
     padding-top: 20px;
     padding-left: 18px;
 }
 
 .header h1 {
-    margin: 0px;
+    margin: 0;
     font-size: 28px;
+    font-weight: 300;
 }
 
 .graph-container {
@@ -82,14 +82,15 @@ body {
     border-left-width: 0.5px;
 }
 
-@media (max-width: 200px) {
+@media (max-width: 1400px) {
     .graph {
-        width: calc(100% - 330px);
+        width: 66%;
     }
 }
 
 @media (max-width: 900px) {
     .graph-container {
+        margin-top: 0;
         width: calc(100% - 36px);
     }
     .graph {
