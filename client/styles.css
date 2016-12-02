@@ -59,8 +59,8 @@ input[type=number] {
     border-width: 1.2px;
     border-radius: 3px;
     border-color: rgba(0, 0, 0, 0.16);
-    min-width: 50px;
-    width: 100px;
+    min-width: 40px;
+    width: 70px;
     height: 30px;
     font-family: 'Fira Sans';
     font-size: 16px;
@@ -132,13 +132,13 @@ span input[type=number] {
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1150px) {
     .graph-container {
         margin-top: 0;
         width: calc(100% - 36px);
     }
     .graph {
-        width: calc(100% - 270px)
+        width: calc(100% - 285px)
     }
 }
 

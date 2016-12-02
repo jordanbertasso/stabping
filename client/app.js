@@ -138,21 +138,22 @@ class Graph extends Component {
     }
 
     update() {
-        if (this.graph && !this.graph.isZoomed()) {
-            console.log('Graph.update() executing actual update for ' + this.props.kind.name);
+        if (!this.graph) return;
+
+        if (this.graph.isZoomed()) {
+            this.graph.updateOptions({rollPeriod: this.props.rollPeriod});
+        } else {
             var h = hoursBack(this.props.preset);
             var dateWindow = h == 0 ? null : [h, this.props.data.slice(-1)[0][0]];
 
-            var graphOptions = {
+            this.graph.updateOptions({
                 labels: ['Time'].concat(this.props.options.addrs),
                 isZoomedIgnoreProgrammaticZoom: true,
                 valueRange: [0, this.props.max + 2],
                 dateWindow: dateWindow,
                 rollPeriod: this.props.rollPeriod,
                 file: this.props.data
-            };
-
-            this.graph.updateOptions(graphOptions);
+            });
         }
     }
 
@@ -269,7 +270,7 @@ class Target extends Component {
             h('div', {
                 className: 'graph-controls'
             }, [
-                h('div', {className: 'control-group'}, [
+                h('div', null, [
                     h('div', {className: 'label'}, 'Base Time Interval'),
                     h('select', {
                         value: this.state.preset,
@@ -290,17 +291,14 @@ class Target extends Component {
                         h('option', {value: -2}, 'All*')
                     ])
                 ]),
-                h('div', {className: 'control-group'}, [
-                    h('div', {className: 'label'}, 'Rolling Average'),
-                    h('span', null, [
-                        'over',
-                        h('input', {
-                            type: 'number',
-                            value: this.state.rollPeriod,
-                            onChange: (evt) => this.setState({rollPeriod: evt.target.value})
-                        }),
-                        'point(s).'
-                    ])
+                h('span', null, [
+                    'Roll avg over',
+                    h('input', {
+                        type: 'number',
+                        value: this.state.rollPeriod,
+                        onChange: (evt) => this.setState({rollPeriod: evt.target.value})
+                    }),
+                    'point(s)'
                 ]),
                 h('div', {className: 'control-group'}, [
                     h('div', {className: 'label'}, 'View Options'),
