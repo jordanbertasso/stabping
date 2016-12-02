@@ -140,9 +140,7 @@ class Graph extends Component {
     update() {
         if (!this.graph) return;
 
-        if (this.graph.isZoomed()) {
-            this.graph.updateOptions({rollPeriod: this.props.rollPeriod});
-        } else {
+        if (!this.graph.isZoomed()) {
             var h = hoursBack(this.props.preset);
             var dateWindow = h == 0 ? null : [h, this.props.data.slice(-1)[0][0]];
 
@@ -154,6 +152,8 @@ class Graph extends Component {
                 rollPeriod: this.props.rollPeriod,
                 file: this.props.data
             });
+        } else if (this.graph.getOption('rollPeriod') != this.props.rollPeriod) {
+            this.graph.updateOptions({rollPeriod: this.props.rollPeriod});
         }
     }
 
