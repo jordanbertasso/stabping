@@ -105,9 +105,11 @@ class Graph extends Component {
             if (seriesName == 'Time') {
                 return dateFormatter(val);
             } else if (val == SENTINEL_ERROR) {
-                return 'Error/timeout';
+                return 'Error/Timeout';
             } else if (val == SENTINEL_NODATA) {
                 return 'No Data';
+            } else if (val < 0) {
+                return 'Error/Timeout/No Data';
             } else {
                 return this.props.valFormatter(val);
             }
@@ -141,13 +143,16 @@ class Graph extends Component {
             var h = hoursBack(this.props.preset);
             var dateWindow = h == 0 ? null : [h, this.props.data.slice(-1)[0][0]];
 
-            this.graph.updateOptions({
+            var graphOptions = {
                 labels: ['Time'].concat(this.props.options.addrs),
                 isZoomedIgnoreProgrammaticZoom: true,
                 valueRange: [0, this.props.max + 2],
                 dateWindow: dateWindow,
+                rollPeriod: this.props.rollPeriod,
                 file: this.props.data
-            });
+            };
+
+            this.graph.updateOptions(graphOptions);
         }
     }
 
@@ -170,7 +175,7 @@ class Target extends Component {
             max: null,
             leftLimit: currentTime(),
             preset: 1,
-            rollingSelection: 0
+            rollPeriod: 1
         };
     }
 
@@ -244,11 +249,6 @@ class Target extends Component {
         this.setState({preset: evt.target.value});
     }
 
-    onRollingSelectionChange(evt) {
-        console.log('rollingSelection is now: ' + evt.target.value);
-        this.setState({rollingSelection: evt.target.value});
-    }
-
     render() {
         return h('div', {
             className: 'graph-container'
@@ -263,7 +263,8 @@ class Target extends Component {
                 data: this.data,
                 options: this.state.options,
                 max: this.state.max,
-                preset: this.state.preset
+                preset: this.state.preset,
+                rollPeriod: this.state.rollPeriod
             }),
             h('div', {
                 className: 'graph-controls'
@@ -291,16 +292,14 @@ class Target extends Component {
                 ]),
                 h('div', {className: 'control-group'}, [
                     h('div', {className: 'label'}, 'Rolling Average'),
-                    h('select', {
-                        value: this.state.rollingSelection,
-                        onChange: this.onRollingSelectionChange.bind(this)
-                    }, [
-                        h('option', {value: 0}, 'None'),
-                        h('option', {value: 1}, '1 Day'),
-                        h('option', {value: 2}, '2 Days'),
-                        h('option', {value: 3}, '3 Days'),
-                        h('option', {value: 7}, '1 Week'),
-                        h('option', {value: -1}, 'Custom')
+                    h('span', null, [
+                        'over',
+                        h('input', {
+                            type: 'number',
+                            value: this.state.rollPeriod,
+                            onChange: (evt) => this.setState({rollPeriod: evt.target.value})
+                        }),
+                        'point(s).'
                     ])
                 ]),
                 h('div', {className: 'control-group'}, [

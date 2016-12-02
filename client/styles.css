@@ -46,12 +46,31 @@ select {
     border-width: 1.2px;
     border-radius: 3px;
     border-color: rgba(0, 0, 0, 0.16);
-    min-width: 250px;
+    min-width: 230px;
     height: 35px;
     font-family: 'Fira Sans';
     font-size: 16px;
     padding-left: 10px;
     margin-bottom: 10px;
+}
+
+input[type=number] {
+    border-style: solid;
+    border-width: 1.2px;
+    border-radius: 3px;
+    border-color: rgba(0, 0, 0, 0.16);
+    min-width: 50px;
+    width: 100px;
+    height: 30px;
+    font-family: 'Fira Sans';
+    font-size: 16px;
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
+span input[type=number] {
+    margin-left: 10px;
+    margin-right: 10px;
 }
 
 .label {
