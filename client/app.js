@@ -68,6 +68,14 @@ function ajax(method, dest, type, success, error, data) {
     req.send(data);
 }
 
+function currentTime() {
+    return Math.floor(new Date() / 1000);
+}
+
+function hoursBack(hours) {
+    return currentTime() - (hours * 3600);
+}
+
 function dateAxisFormatter(epochSeconds, gran, opts) {
     return Dygraph.dateAxisLabelFormatter(new Date(epochSeconds * 1000), gran, opts);
 }
@@ -147,7 +155,8 @@ class Target extends Component {
         this.state = {
             options: {},
             max: null,
-            preset: 24,
+            leftLimit: currentTime(),
+            preset: 3,
             rollingSelection: 0
         };
     }
@@ -158,11 +167,68 @@ class Target extends Component {
             this.setState({
                 options: res
             });
+
+            setTimeout(function() {
+                this.persistentDataRetrieve(this.state.preset);
+            }.bind(this), 300);
         }.bind(this));
+    }
+
+    persistentDataRetrieve(hoursPreset) {
+        if (hoursPreset == 0) {
+            return;
+        }
+
+        var leftTarget = hoursBack(hoursPreset);
+        var leftLimit = this.state.leftLimit;
+        var elementLength = this.state.options.addrs.length + 1;
+        var nonce = this.state.options.nonce;
+
+        if (leftTarget < leftLimit) {
+            ajax('POST', '/api/target/' + this.props.kind.name, 'arraybuffer', function(res) {
+                if (nonce == this.state.options.nonce) {
+                    var raw = new Int32Array(res);
+                    leftLimit = raw[0];
+                    var newData = [];
+
+                    var curMax = this.state.max;
+                    for (let j = 0; j < raw.length; j += elementLength) {
+                        var arr = raw.slice(j, j + elementLength);
+                        newData.push(arr);
+                        for (let i = 1; i < arr.length; i++) {
+                            if (arr[i] > curMax) {
+                                curMax = arr[i];
+                            }
+                        }
+                    }
+
+                    if (this.data) {
+                        this.data = newData.concat(this.data);
+                    } else {
+                        this.data = newData;
+                    }
+
+                    console.log(this.data);
+                    this.setState({
+                        max: curMax,
+                        leftLimit: leftLimit
+                    });
+                } else {
+                    console.log('Mismatched nonce in persistent data retrieve!');
+                }
+            }.bind(this), function(err) {
+                console.log('Failed to retrieve persistent data for range ' + leftTarget + ' to ' + leftLimit);
+            }.bind(this), JSON.stringify({
+                nonce: this.state.options.nonce,
+                lower: leftTarget,
+                upper: leftLimit
+            }));
+        }
     }
 
     onPresetChange(evt) {
         console.log('preset is now: ' + evt.target.value);
+        this.persistentDataRetrieve(evt.target.value);
         this.setState({preset: evt.target.value});
     }
 
@@ -195,6 +261,10 @@ class Target extends Component {
                         value: this.state.preset,
                         onChange: this.onPresetChange.bind(this)
                     }, [
+                        h('option', {value: 0}, 'Since Load'),
+                        h('option', {value: 1}, '1 Hours'),
+                        h('option', {value: 3}, '3 Hours'),
+                        h('option', {value: 6}, '6 Hours'),
                         h('option', {value: 12}, '12 Hours'),
                         h('option', {value: 24}, '1 Day'),
                         h('option', {value: 72}, '3 Days'),
