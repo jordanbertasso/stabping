@@ -127,7 +127,6 @@ class Graph extends Component {
                         axisLabelFormatter: gvFormatter
                     }
                 },
-                animatedZooms: true,
                 isZoomedIgnoreProgrammaticZoom: true,
                 zoomCallback: function (lowerDate, upperDate, yRanges) {
                     this.update();
@@ -170,7 +169,7 @@ class Target extends Component {
             options: {},
             max: null,
             leftLimit: currentTime(),
-            preset: 3,
+            preset: 1,
             rollingSelection: 0
         };
     }
