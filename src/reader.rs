@@ -90,6 +90,10 @@ impl WriteBody for SPDataReader {
                 Err(i) => i
             };
 
+            if begin >= data.len() {
+                return Ok(())
+            }
+
             let mut writer = BufWriter::new(res);
 
             let mut buf: Vec<i32> = Vec::with_capacity(1 + ordered_list.len());
