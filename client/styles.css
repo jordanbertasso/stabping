@@ -37,6 +37,10 @@ body {
     overflow: hidden;
 }
 
+/*
+ * Select styling adapted from 'select'/combo-boxes in Spectre CSS
+ * https://picturepan2.github.io/spectre
+ */
 select {
     background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAMAAACzvE1FAAAADFBMVEUzMzMzMzMzMzMzMzMKAG/3AAAAA3RSTlMAf4C/aSLHAAAAPElEQVR42q3NMQ4AIAgEQTn//2cLdRKppSGzBYwzVXvznNWs8C58CiussPJj8h6NwgorrKRdTvuV9v16Afn0AYFOB7aYAAAAAElFTkSuQmCC) right 6px center/9px 12px no-repeat #fff;
     appearance: none;
@@ -118,6 +122,10 @@ input[type=checkbox] {
     font-weight: 300;
 }
 
+/*
+ * Container border and shadow styling adapted from 'panel' in MUI CSS
+ * https://www.muicss.com/
+ */
 .graph-container {
     padding: 22px;
     margin-top: 20px;
