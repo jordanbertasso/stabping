@@ -94,22 +94,19 @@ function dateFormatter(epochSeconds) {
     return Dygraph.dateString_(epochSeconds * 1000);
 }
 
+var autoValueRange = [0, null];
+
 class Graph extends Component {
     constructor() {
         super();
         this.graph = null;
+        this.pinnedRange = null;
     }
 
     componentDidMount() {
         var gvFormatter = function(val, opts, seriesName) {
             if (seriesName == 'Time') {
                 return dateFormatter(val);
-            } else if (val == SENTINEL_ERROR) {
-                return 'Error/Timeout';
-            } else if (val == SENTINEL_NODATA) {
-                return 'No Data';
-            } else if (val < 0) {
-                return 'Error/Timeout/No Data';
             } else {
                 return this.props.valFormatter(val);
             }
@@ -120,13 +117,13 @@ class Graph extends Component {
             [[0]],
             {
                 valueFormatter: gvFormatter,
-                valueRange: [0, null],
+                valueRange: autoValueRange,
                 axes: {
                     x: {
                         axisLabelFormatter: dateAxisFormatter
                     },
                     y: {
-                        axisLabelFormatter: gvFormatter
+                        axisLabelFormatter: this.props.valFormatter
                     }
                 },
                 isZoomedIgnoreProgrammaticZoom: true,
@@ -138,22 +135,40 @@ class Graph extends Component {
     }
 
     update() {
-        if (!this.graph) return;
+        if (!this.graph || !this.props.data) return;
+
+        // object containing all the graph options we want to update
+        var g = {};
 
         if (!this.graph.isZoomed()) {
-            var h = hoursBack(this.props.preset);
-            var dateWindow = h == 0 ? null : [h, this.props.data.slice(-1)[0][0]];
+            g.isZoomedIgnoreProgrammaticZoom = true;
+            g.labels = ['Time'].concat(this.props.options.addrs);
 
-            this.graph.updateOptions({
-                labels: ['Time'].concat(this.props.options.addrs),
-                isZoomedIgnoreProgrammaticZoom: true,
-                valueRange: [0, this.props.max + 2],
-                dateWindow: dateWindow,
-                rollPeriod: this.props.rollPeriod,
-                file: this.props.data
-            });
-        } else if (this.graph.getOption('rollPeriod') != this.props.rollPeriod) {
-            this.graph.updateOptions({rollPeriod: this.props.rollPeriod});
+            var h = hoursBack(this.props.preset);
+            g.dateWindow = h == 0 ? null : [h, this.props.data.slice(-1)[0][0]];
+
+            g.file = this.props.data;
+        }
+
+        if (this.graph.getOption('rollPeriod') != this.props.rollPeriod) {
+            g.rollPeriod = this.props.rollPeriod;
+        }
+
+        console.log(this.pinnedRange);
+        console.log(this.props.shouldPinRange);
+
+        if (this.pinnedRange == null && this.props.shouldPinRange) {
+            this.pinnedRange = this.graph.yAxisRange();
+            g.valueRange = this.pinnedRange;
+            console.log("Pinning range!");
+        } else if (this.pinnedRange != null && !this.props.shouldPinRange) {
+            this.pinnedRange = null;
+            g.valueRange = autoValueRange;
+            console.log("Unpinning range!");
+        }
+
+        if (Object.keys(g).length > 0) {
+            this.graph.updateOptions(g);
         }
     }
 
@@ -173,10 +188,10 @@ class Target extends Component {
         super(props);
         this.state = {
             options: {},
-            max: null,
             leftLimit: currentTime(),
             preset: 1,
-            rollPeriod: 1
+            rollPeriod: 1,
+            shouldPinRange: false
         };
     }
 
@@ -207,17 +222,20 @@ class Target extends Component {
             ajax('POST', '/api/target/' + this.props.kind.name, 'arraybuffer', function(res) {
                 if (nonce == this.state.options.nonce) {
                     var raw = new Int32Array(res);
-                    var newData = [];
+                    var newData = new Array(Math.ceil(raw.length / elementLength));
+                    let k = 0;
 
-                    var curMax = this.state.max;
                     for (let j = 0; j < raw.length; j += elementLength) {
-                        var arr = raw.slice(j, j + elementLength);
-                        newData.push(arr);
-                        for (let i = 1; i < arr.length; i++) {
-                            if (arr[i] > curMax) {
-                                curMax = arr[i];
-                            }
+                        let arr = new Array(elementLength);
+                        for (let i = 0; i < arr.length; i++) {
+                            let n = raw[j + i];
+                            arr[i] = n >= 0 ? n : null;
                         }
+                        newData[k++] = arr;
+                    }
+
+                    if (newData[newData.length - 1] == undefined) {
+                        newData.pop();
                     }
 
                     if (this.data) {
@@ -226,9 +244,7 @@ class Target extends Component {
                         this.data = newData;
                     }
 
-                    console.log(this.data);
                     this.setState({
-                        max: curMax,
                         leftLimit: leftTarget
                     });
                 } else {
@@ -263,9 +279,9 @@ class Target extends Component {
                 valFormatter: this.props.valFormatter,
                 data: this.data,
                 options: this.state.options,
-                max: this.state.max,
                 preset: this.state.preset,
-                rollPeriod: this.state.rollPeriod
+                rollPeriod: this.state.rollPeriod,
+                shouldPinRange: this.state.shouldPinRange
             }),
             h('div', {
                 className: 'graph-controls'
@@ -300,18 +316,19 @@ class Target extends Component {
                     }),
                     'point(s)'
                 ]),
-                h('div', {className: 'control-group'}, [
-                    h('div', {className: 'label'}, 'View Options'),
-                    h('span', null, [
-                        h('input', {type: 'checkbox'}),
-                        'Checkbox'
-                    ])
+                h('div', null, [
+                    h('input', {
+                        type: 'checkbox',
+                        checked: this.state.shouldPinRange,
+                        onClick: () => this.setState({shouldPinRange: !this.state.shouldPinRange})
+                    }),
+                    'Pin/lock value range'
                 ])
             ])
         ]);
     }
 
-    liveDataUpdate(nonce, arr) {
+    liveDataUpdate(nonce, inArr) {
         if (nonce != this.state.options.nonce) {
             console.log('Mismatched nonce! I have ' + this.state.options.nonce +
                         ' but this new one is ' + nonce);
@@ -322,18 +339,14 @@ class Target extends Component {
             this.data = [];
         }
 
+        var arr = new Array(inArr.length);
+        for (let i = 0; i < arr.length; i++) {
+            let n = inArr[i];
+            arr[i] = n >= 0 ? n : null;
+        }
         this.data.push(arr);
 
-        var curMax = this.state.max;
-        for (let i = 1; i < arr.length; i++) {
-            if (arr[i] > curMax) {
-                curMax = arr[i];
-            }
-        }
-
-        this.setState({
-            max: curMax
-        });
+        this.forceUpdate();
     }
 }
 
