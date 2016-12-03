@@ -154,17 +154,12 @@ class Graph extends Component {
             g.rollPeriod = this.props.rollPeriod;
         }
 
-        console.log(this.pinnedRange);
-        console.log(this.props.shouldPinRange);
-
         if (this.pinnedRange == null && this.props.shouldPinRange) {
             this.pinnedRange = this.graph.yAxisRange();
             g.valueRange = this.pinnedRange;
-            console.log("Pinning range!");
         } else if (this.pinnedRange != null && !this.props.shouldPinRange) {
             this.pinnedRange = null;
             g.valueRange = autoValueRange;
-            console.log("Unpinning range!");
         }
 
         if (Object.keys(g).length > 0) {
@@ -316,7 +311,7 @@ class Target extends Component {
                     }),
                     'point(s)'
                 ]),
-                h('div', null, [
+                h('label', {className: 'checkbox-label'}, [
                     h('input', {
                         type: 'checkbox',
                         checked: this.state.shouldPinRange,
