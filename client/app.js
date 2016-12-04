@@ -379,26 +379,25 @@ class Target extends Component {
                 onClick: this.onShowOptions.bind(this)
             }, '⚙');
             controls = [
-                h('div', null, [
-                    h('div', {className: 'label'}, 'Base Time Interval'),
-                    h('select', {
-                        value: this.state.preset,
-                        onChange: this.onPresetChange.bind(this)
-                    }, [
-                        h('option', {value: -1}, 'Since Load'),
-                        h('option', {value: 0.25}, '15 Minutes'),
-                        h('option', {value: 0.5}, '30 Minutes'),
-                        h('option', {value: 1}, '1 Hour'),
-                        h('option', {value: 3}, '3 Hours'),
-                        h('option', {value: 6}, '6 Hours'),
-                        h('option', {value: 12}, '12 Hours'),
-                        h('option', {value: 24}, '1 Day'),
-                        h('option', {value: 72}, '3 Days'),
-                        h('option', {value: 168}, '1 Week'),
-                        h('option', {value: 336}, '2 Weeks'),
-                        h('option', {value: 744}, '1 Month'),
-                        h('option', {value: -2}, 'All*')
-                    ])
+                h('label', {className: 'select-label'}, 'Base Time Interval'),
+                h('select', {
+                    className: 'base-interval-select',
+                    value: this.state.preset,
+                    onChange: this.onPresetChange.bind(this)
+                }, [
+                    h('option', {value: -1}, 'Since Load'),
+                    h('option', {value: 0.25}, '15 Minutes'),
+                    h('option', {value: 0.5}, '30 Minutes'),
+                    h('option', {value: 1}, '1 Hour'),
+                    h('option', {value: 3}, '3 Hours'),
+                    h('option', {value: 6}, '6 Hours'),
+                    h('option', {value: 12}, '12 Hours'),
+                    h('option', {value: 24}, '1 Day'),
+                    h('option', {value: 72}, '3 Days'),
+                    h('option', {value: 168}, '1 Week'),
+                    h('option', {value: 336}, '2 Weeks'),
+                    h('option', {value: 744}, '1 Month'),
+                    h('option', {value: -2}, 'All*')
                 ]),
                 h('span', null, [
                     'Roll avg over',

@@ -73,6 +73,11 @@ select {
     margin-bottom: 10px;
 }
 
+.select-label {
+    display: block;
+    margin-bottom: 10px;
+}
+
 button {
     cursor: pointer;
 }
@@ -122,10 +127,6 @@ input[type=checkbox] {
     vertical-align: bottom;
     position: relative;
     top: -1px;
-}
-
-.label {
-    margin-bottom: 10px;
 }
 
 ul {
@@ -191,6 +192,10 @@ ul {
     border-left-style: solid;
     border-left-color: rgba(0, 0, 0, 0.12);
     border-left-width: 0.5px;
+}
+
+.base-interval-select {
+    display: block;
 }
 
 .target-head * {
