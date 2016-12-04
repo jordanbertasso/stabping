@@ -7,7 +7,8 @@ const SENTINEL_NODATA = -2000000000;
 const TARGET_KINDS = [
     {
         name: 'tcpping',
-        pretty_name: 'TCP Ping',
+        prettyName: 'TCP Ping',
+        addrsPrompt: 'Addresses (host:port) to ping',
         valFormatter: function(val) {
             return (val / 1000).toFixed() + ' ms';
         }
@@ -178,6 +179,85 @@ class Graph extends Component {
     }
 }
 
+class Options extends Component {
+    componentWillMount() {
+        console.log('Options Component will MOUNT.');
+        this.state = JSON.parse(JSON.stringify(this.props.options))
+        this.state.addrInput = '';
+    }
+
+    componentWillUnmount() {
+        console.log('Options Component will UNMOUNT.');
+    }
+
+    getOptions() {
+        delete this.state.addrInput;
+        return this.state;
+    }
+
+    render() {
+        console.log('Options Component render() called.');
+        return h('div', {className: 'options-container'}, [
+            h('h3', null, this.props.kind.prettyName + ' Options'),
+            h('div', null, [
+                'Collect data every',
+                h('input', {
+                    type: 'number',
+                    value: this.state.interval / 1000,
+                    onChange: (evt) => this.setState({interval: evt.target.value * 1000}),
+                    title: 'seconds'
+                }),
+                's'
+            ]),
+            h('div', null, [
+                'Avg across',
+                h('input', {
+                    type: 'number',
+                    value: this.state.avg_across,
+                    onChange: (evt) => this.setState({avg_across: evt.target.value})
+                }),
+                'values'
+            ]),
+            h('div', null, [
+                this.props.kind.addrsPrompt,
+                h('ul', null, [
+                    this.state.addrs.map(function(val, i, arr) {
+                        return h('li', {className: 'addr-item'}, [
+                            h('button', {
+                                onClick: () => {
+                                    arr.splice(i, 1);
+                                    this.setState({addrs: arr});
+                                }
+                            }, '-'),
+                            val
+                        ]);
+                    }.bind(this))
+                ]),
+                h('div', {className: 'addr-input'}, [
+                    h('input', {
+                        type: 'text',
+                        value: this.state.addrInput,
+                        onInput: (evt) => {
+                            console.log(evt.target.value);
+                            this.setState({addrInput: evt.target.value});
+                        }
+                    }),
+                    h('button', {
+                        onClick: () => {
+                            var addrs = this.state.addrs;
+                            addrs.push(this.state.addrInput);
+                            this.setState({
+                                addrInput: '',
+                                addrs: addrs
+                            });
+                        }
+                    }, 'Add')
+                ])
+            ])
+        ])
+    }
+}
+
 class Target extends Component {
     constructor(props) {
         super(props);
@@ -277,8 +357,9 @@ class Target extends Component {
     }
 
     render() {
+        let buttons, controls;
         if (this.state.optionsMode) {
-            var buttons = [
+            buttons = [
                 h('button', {
                     onClick: this.onCancelOptions.bind(this)
                 }, 'Cancel'),
@@ -287,13 +368,17 @@ class Target extends Component {
                     onClick: this.onSaveOptions.bind(this)
                 }, 'Save')
             ];
-            var controls = h('p', null, 'Options will be here');
+            console.log('Rendering Options component from hyperscript');
+            controls = h(Options, {
+                kind: this.props.kind,
+                options: this.state.options
+            });
         } else {
-            var buttons = h('button', {
+            buttons = h('button', {
                 className: 'btn-icon',
                 onClick: this.onShowOptions.bind(this)
             }, '⚙');
-            var controls = [
+            controls = [
                 h('div', null, [
                     h('div', {className: 'label'}, 'Base Time Interval'),
                     h('select', {
@@ -339,7 +424,7 @@ class Target extends Component {
             className: 'graph-container'
         }, [
             h('div', {className: 'target-head'}, [
-                h('h2', null, this.props.kind.pretty_name),
+                h('h2', null, this.props.kind.prettyName),
                 h('div', {className: 'button-container'}, buttons)
             ]),
             h(Graph, {
