@@ -58,6 +58,27 @@ select {
     margin-bottom: 10px;
 }
 
+button {
+    background-color: transparent;
+    border-style: solid;
+    border-width: 1.2px;
+    border-radius: 3px;
+    border-color: rgba(0, 0, 0, 0.16);
+    font-family: 'Fira Sans';
+    font-size: 16px;
+    height: 35px;
+    cursor: pointer;
+}
+
+button.btn-icon {
+    font-size: 20px;
+}
+
+button.btn-primary {
+    background-color: rgba(30, 48, 149, 0.84);
+    color: #f8f8f8;
+}
+
 input[type=number] {
     border-style: solid;
     border-width: 1.2px;
@@ -155,6 +176,20 @@ input[type=checkbox] {
     border-left-style: solid;
     border-left-color: rgba(0, 0, 0, 0.12);
     border-left-width: 0.5px;
+}
+
+.target-head * {
+    display: inline-block;
+}
+
+.button-container {
+    float: right;
+    padding-top: 1px;
+}
+
+.button-container button {
+    display: inline-block;
+    margin-left: 5px;
 }
 
 @media (max-width: 1400px) {

@@ -186,7 +186,8 @@ class Target extends Component {
             leftLimit: currentTime(),
             preset: 1,
             rollPeriod: 1,
-            shouldPinRange: false
+            shouldPinRange: false,
+            optionsMode: false
         };
     }
 
@@ -243,7 +244,7 @@ class Target extends Component {
                         leftLimit: leftTarget
                     });
                 } else {
-                    console.log('Mismatched nonce in persistent data retrieve!');
+                    console.log('Nonce changed since persistent data retrieve!');
                 }
             }.bind(this), function(err) {
                 console.log('Failed to retrieve persistent data for range ' + leftTarget + ' to ' + leftLimit);
@@ -261,26 +262,38 @@ class Target extends Component {
         this.setState({preset: evt.target.value});
     }
 
+    onShowOptions() {
+        this.setState({optionsMode: true});
+    }
+
+    onSaveOptions() {
+        if (this.state.optionsMode) {
+            console.log('Save button clicked while in options mode');
+        }
+    }
+
+    onCancelOptions() {
+        this.setState({optionsMode: false});
+    }
+
     render() {
-        return h('div', {
-            className: 'graph-container'
-        }, [
-            h('h2', null, [this.props.kind.pretty_name]),
-            h(Graph, {
-                ref: (g) => {
-                    g.update();
-                },
-                kind: this.props.kind,
-                valFormatter: this.props.valFormatter,
-                data: this.data,
-                options: this.state.options,
-                preset: this.state.preset,
-                rollPeriod: this.state.rollPeriod,
-                shouldPinRange: this.state.shouldPinRange
-            }),
-            h('div', {
-                className: 'graph-controls'
-            }, [
+        if (this.state.optionsMode) {
+            var buttons = [
+                h('button', {
+                    onClick: this.onCancelOptions.bind(this)
+                }, 'Cancel'),
+                h('button', {
+                    className: 'btn-primary',
+                    onClick: this.onSaveOptions.bind(this)
+                }, 'Save')
+            ];
+            var controls = h('p', null, 'Options will be here');
+        } else {
+            var buttons = h('button', {
+                className: 'btn-icon',
+                onClick: this.onShowOptions.bind(this)
+            }, '⚙');
+            var controls = [
                 h('div', null, [
                     h('div', {className: 'label'}, 'Base Time Interval'),
                     h('select', {
@@ -319,7 +332,29 @@ class Target extends Component {
                     }),
                     'Pin/lock value range'
                 ])
-            ])
+            ];
+        }
+
+        return h('div', {
+            className: 'graph-container'
+        }, [
+            h('div', {className: 'target-head'}, [
+                h('h2', null, this.props.kind.pretty_name),
+                h('div', {className: 'button-container'}, buttons)
+            ]),
+            h(Graph, {
+                ref: (g) => {
+                    g.update();
+                },
+                kind: this.props.kind,
+                valFormatter: this.props.valFormatter,
+                data: this.data,
+                options: this.state.options,
+                preset: this.state.preset,
+                rollPeriod: this.state.rollPeriod,
+                shouldPinRange: this.state.shouldPinRange
+            }),
+            h('div', {className: 'graph-controls'}, controls)
         ]);
     }
 
