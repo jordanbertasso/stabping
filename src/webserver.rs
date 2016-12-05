@@ -10,15 +10,16 @@ use iron::middleware::Handler;
 use iron::method::Method;
 use iron::headers::ContentType;
 use iron::modifiers::Header;
+use iron::request::Body;
 use iron::status;
 use router::Router;
 use mount::Mount;
 
-use rustc_serialize::json;
+use rustc_serialize::{json, Decodable};
 
 use reader::{SPDataReader, DataRequest};
-use persist::TargetManager;
-use options::MainConfiguration;
+use persist::{TargetManager, ManagerError};
+use options::{MainConfiguration, TargetOptions};
 
 #[derive(Debug)]
 enum SPWebError {
@@ -27,6 +28,7 @@ enum SPWebError {
     NotImplemented,
     BadRequest,
     ServerError,
+    NonceConflict,
 }
 
 impl Error for SPWebError {
@@ -37,6 +39,7 @@ impl Error for SPWebError {
             SPWebError::NotImplemented => "Handler not yet implemented.",
             SPWebError::BadRequest => "Bad request (malformed or missing fields).",
             SPWebError::ServerError => "Server encountered an error.",
+            SPWebError::NonceConflict => "The nonce given does not match the current nonce, refusing update.",
         }
     }
 }
@@ -78,6 +81,32 @@ fn webassets_handler(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+trait JsonBody {
+    fn read_json<T: Decodable>(&mut self) -> Result<T, IronError>;
+}
+
+impl<'a, 'b> JsonBody for Body<'a, 'b> {
+    fn read_json<T: Decodable>(&mut self) -> Result<T, IronError> {
+        let mut buf = String::new();
+
+        try!(
+            self.read_to_string(&mut buf)
+            .map_err(|_| {
+                println!("Failed to read request body.");
+                IronError::new(SPWebError::ServerError, status::InternalServerError)
+            })
+        );
+
+        Ok(try!(
+            json::decode::<T>(&buf)
+            .map_err(|_| {
+                println!("Failed to parse request body.");
+                IronError::new(SPWebError::BadRequest, status::BadRequest)
+            })
+        ))
+    }
+}
+
 struct TargetHandler {
     manager: Arc<TargetManager>,
 }
@@ -104,22 +133,7 @@ impl Handler for TargetHandler {
             },
             Method::Post => {
                 // retrieve data
-                let mut buf = String::new();
-                try!(
-                    req.body.read_to_string(&mut buf)
-                    .map_err(|_| {
-                        println!("Failed to read request body.");
-                        IronError::new(SPWebError::ServerError, status::InternalServerError)
-                    })
-                );
-
-                let dr = try!(
-                    json::decode::<DataRequest>(&buf)
-                    .map_err(|_| {
-                        println!("Failed to parse request for {} data.", self.manager.kind.compact_name());
-                        IronError::new(SPWebError::BadRequest, status::BadRequest)
-                    })
-                );
+                let dr: DataRequest = try!(req.body.read_json());
                 println!("Request for {} data: {:?}", self.manager.kind.compact_name(), dr);
 
                 let body_writer = try!(
@@ -140,7 +154,25 @@ impl Handler for TargetHandler {
             },
             Method::Put => {
                 // update options
-                Err(IronError::new(SPWebError::NotImplemented, status::NotImplemented))
+                let mut new_options: TargetOptions = try!(req.body.read_json());
+                if new_options.nonce != self.manager.options_read().nonce {
+                    return Err(IronError::new(SPWebError::NonceConflict, status::Conflict));
+                }
+
+                {
+                    let (n, over) = new_options.nonce.overflowing_add(1);
+                    if over {
+                        new_options.nonce = 0;
+                    } else {
+                        new_options.nonce = n;
+                    }
+                }
+
+                try!(
+                    self.manager.options_update(new_options)
+                    .map_err(|_| IronError::new(SPWebError::ServerError, status::InternalServerError))
+                );
+                Ok(Response::with((status::Ok)))
             },
             _ => Err(IronError::new(SPWebError::InvalidMethod, status::MethodNotAllowed))
         }
