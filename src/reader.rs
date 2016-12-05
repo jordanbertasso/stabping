@@ -8,7 +8,7 @@ use memmap::{Mmap, Protection};
 use iron::response::{WriteBody, ResponseBody};
 
 use helpers::VecIntoRawBytes;
-use persist::{TargetManager, ManagerError};
+use persist::TargetManager;
 use options::SENTINEL_NODATA;
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]
@@ -72,7 +72,7 @@ impl WriteBody for SPDataReader {
 
             let begin = match data.binary_search_by_key(&self.lower, |d| d.time) {
                 Ok(mut i) => {
-                    while i >= 0 && data[i].time == self.lower {
+                    while data[i].time == self.lower {
                         i -= 1;
                     }
                     i
@@ -106,7 +106,7 @@ impl WriteBody for SPDataReader {
                         buf.push(membership[i as usize]);
                         membership[i as usize] = SENTINEL_NODATA;
                     }
-                    writer.write_all(&buf.into_raw_bytes());
+                    try!(writer.write_all(&buf.into_raw_bytes()));
                     buf = Vec::with_capacity(1 + ordered_list.len());
                     cur = d.time;
                 }
@@ -120,8 +120,8 @@ impl WriteBody for SPDataReader {
                 buf.push(membership[i as usize]);
                 membership[i as usize] = SENTINEL_NODATA;
             }
-            writer.write_all(&buf.into_raw_bytes());
-            writer.flush();
+            try!(writer.write_all(&buf.into_raw_bytes()));
+            try!(writer.flush());
 
             Ok(())
         } else {

@@ -9,7 +9,7 @@ use chrono::Local;
 use std::net::TcpStream;
 
 use options::SENTINEL_ERROR;
-use options::{TargetOptions, TargetResults};
+use options::TargetResults;
 use persist::TargetManager;
 
 pub fn run_tcpping_worker(manager: Arc<TargetManager>,

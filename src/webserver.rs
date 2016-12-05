@@ -10,7 +10,6 @@ use iron::middleware::Handler;
 use iron::method::Method;
 use iron::headers::ContentType;
 use iron::modifiers::Header;
-use iron::response::WriteBody;
 use iron::status;
 use router::Router;
 use mount::Mount;
@@ -18,7 +17,7 @@ use mount::Mount;
 use rustc_serialize::json;
 
 use reader::{SPDataReader, DataRequest};
-use persist::{TargetManager, ManagerError};
+use persist::TargetManager;
 use options::MainConfiguration;
 
 #[derive(Debug)]
@@ -27,6 +26,7 @@ enum SPWebError {
     InvalidMethod,
     NotImplemented,
     BadRequest,
+    ServerError,
 }
 
 impl Error for SPWebError {
@@ -36,6 +36,7 @@ impl Error for SPWebError {
             SPWebError::InvalidMethod => "Invalid method.",
             SPWebError::NotImplemented => "Handler not yet implemented.",
             SPWebError::BadRequest => "Bad request (malformed or missing fields).",
+            SPWebError::ServerError => "Server encountered an error.",
         }
     }
 }
@@ -104,25 +105,38 @@ impl Handler for TargetHandler {
             Method::Post => {
                 // retrieve data
                 let mut buf = String::new();
-                req.body.read_to_string(&mut buf);
-                if let Ok(dr) = json::decode::<DataRequest>(&buf) {
-                    println!("Request for {} data: {:?}", self.manager.kind.compact_name(), dr);
-                    if let Some(body_writer) = SPDataReader::new(self.manager.clone(), dr) {
-                        let r = Response::with((status::Ok));
-                        Ok(Response {
-                            status: r.status,
-                            headers: r.headers,
-                            extensions: r.extensions,
-                            body: Some(Box::new(body_writer)),
-                        })
-                    } else {
+                try!(
+                    req.body.read_to_string(&mut buf)
+                    .map_err(|_| {
+                        println!("Failed to read request body.");
+                        IronError::new(SPWebError::ServerError, status::InternalServerError)
+                    })
+                );
+
+                let dr = try!(
+                    json::decode::<DataRequest>(&buf)
+                    .map_err(|_| {
+                        println!("Failed to parse request for {} data.", self.manager.kind.compact_name());
+                        IronError::new(SPWebError::BadRequest, status::BadRequest)
+                    })
+                );
+                println!("Request for {} data: {:?}", self.manager.kind.compact_name(), dr);
+
+                let body_writer = try!(
+                    SPDataReader::new(self.manager.clone(), dr)
+                    .ok_or_else(|| {
                         println!("Failed to create SPDataReader.");
-                        Err(IronError::new(SPWebError::BadRequest, status::BadRequest))
-                    }
-                } else {
-                    println!("Failed to parse request for {} data.", self.manager.kind.compact_name());
-                    Err(IronError::new(SPWebError::BadRequest, status::BadRequest))
-                }
+                        IronError::new(SPWebError::BadRequest, status::BadRequest)
+                    })
+                );
+
+                let r = Response::with((status::Ok));
+                Ok(Response {
+                    status: r.status,
+                    headers: r.headers,
+                    extensions: r.extensions,
+                    body: Some(Box::new(body_writer)),
+                })
             },
             Method::Put => {
                 // update options

@@ -16,7 +16,7 @@ mod wsserver;
 mod tcpping;
 
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::fs;
 use std::fs::{OpenOptions, File};
 use std::sync::Arc;
@@ -101,10 +101,8 @@ fn main() {
 
     let broadcaster = Arc::new(Broadcaster::new());
 
-    let web_thread = webserver::web_server(configuration.clone(),
-                                           targets.iter());
-    let ws_thread = wsserver::ws_server(configuration.clone(),
-                                        broadcaster.clone());
+    webserver::web_server(configuration.clone(), targets.iter());
+    wsserver::ws_server(configuration.clone(), broadcaster.clone());
 
     let (sender, results) = channel();
     for tm in targets.iter() {
