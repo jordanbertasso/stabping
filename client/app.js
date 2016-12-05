@@ -196,7 +196,6 @@ class Options extends Component {
     }
 
     render() {
-        console.log('Options Component render() called.');
         return h('div', {className: 'options-container'}, [
             h('h3', null, this.props.kind.prettyName + ' Options'),
             h('div', null, [
@@ -237,10 +236,7 @@ class Options extends Component {
                     h('input', {
                         type: 'text',
                         value: this.state.addrInput,
-                        onInput: (evt) => {
-                            console.log(evt.target.value);
-                            this.setState({addrInput: evt.target.value});
-                        }
+                        onInput: (evt) => this.setState({addrInput: evt.target.value})
                     }),
                     h('button', {
                         onClick: () => {
@@ -337,13 +333,8 @@ class Target extends Component {
     }
 
     onPresetChange(evt) {
-        console.log('preset is now: ' + evt.target.value);
         this.persistentDataRetrieve(evt.target.value);
         this.setState({preset: evt.target.value});
-    }
-
-    onShowOptions() {
-        this.setState({optionsMode: true});
     }
 
     onSaveOptions() {
@@ -352,23 +343,18 @@ class Target extends Component {
         }
     }
 
-    onCancelOptions() {
-        this.setState({optionsMode: false});
-    }
-
     render() {
         let buttons, controls;
         if (this.state.optionsMode) {
             buttons = [
                 h('button', {
-                    onClick: this.onCancelOptions.bind(this)
+                    onClick: () => this.setState({optionsMode: false})
                 }, 'Cancel'),
                 h('button', {
                     className: 'btn-primary',
                     onClick: this.onSaveOptions.bind(this)
                 }, 'Save')
             ];
-            console.log('Rendering Options component from hyperscript');
             controls = h(Options, {
                 kind: this.props.kind,
                 options: this.state.options
@@ -376,7 +362,7 @@ class Target extends Component {
         } else {
             buttons = h('button', {
                 className: 'btn-icon',
-                onClick: this.onShowOptions.bind(this)
+                onClick: () => this.setState({optionsMode: true})
             }, '⚙');
             controls = [
                 h('label', {className: 'select-label'}, 'Base Time Interval'),
