@@ -181,13 +181,8 @@ class Graph extends Component {
 
 class Options extends Component {
     componentWillMount() {
-        console.log('Options Component will MOUNT.');
         this.state = JSON.parse(JSON.stringify(this.props.options))
         this.state.addrInput = '';
-    }
-
-    componentWillUnmount() {
-        console.log('Options Component will UNMOUNT.');
     }
 
     getOptions() {
@@ -203,7 +198,7 @@ class Options extends Component {
                 h('input', {
                     type: 'number',
                     value: this.state.interval / 1000,
-                    onChange: (evt) => this.setState({interval: evt.target.value * 1000}),
+                    onInput: (evt) => this.setState({interval: evt.target.value * 1000}),
                     title: 'seconds'
                 }),
                 's'
@@ -213,7 +208,7 @@ class Options extends Component {
                 h('input', {
                     type: 'number',
                     value: this.state.avg_across,
-                    onChange: (evt) => this.setState({avg_across: evt.target.value})
+                    onInput: (evt) => this.setState({avg_across: evt.target.value})
                 }),
                 'values'
             ]),
@@ -432,7 +427,7 @@ class Target extends Component {
                     h('input', {
                         type: 'number',
                         value: this.state.rollPeriod,
-                        onChange: (evt) => this.setState({rollPeriod: evt.target.value})
+                        onInput: (evt) => this.setState({rollPeriod: evt.target.value})
                     }),
                     'point(s)'
                 ]),
@@ -473,7 +468,7 @@ class Target extends Component {
     liveDataUpdate(nonce, inArr) {
         if (nonce != this.state.options.nonce) {
             console.log('Mismatched nonce! I have ' + this.state.options.nonce +
-                        ' but this new one is ' + nonce);
+                        ' but the server gave me ' + nonce);
             console.log(arr);
         }
 

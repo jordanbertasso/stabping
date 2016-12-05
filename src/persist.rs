@@ -184,7 +184,7 @@ impl TargetManager {
             .map_err(|e| ManagerError::OptionsFileIO(e))
         );
         try!(self.index.write().unwrap().ensure_for_addrs(guard.addrs.iter()));
-        println!("Updated options: {:?}", *guard);
+        println!("Updated {} options: {:?}", self.kind.compact_name(), *guard);
         Ok(())
     }
 
