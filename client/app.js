@@ -339,7 +339,46 @@ class Target extends Component {
 
     onSaveOptions() {
         if (this.state.optionsMode) {
-            console.log('Save button clicked while in options mode');
+            console.log('Checking options for differences...');
+            // diff new options and current options and only hit server if different
+            var newOpts = this.optionsComponent.getOptions();
+            var curOpts = this.state.options;
+
+            var optsChanged = newOpts.interval != curOpts.interval ||
+                              newOpts.avg_across != curOpts.avg_across ||
+                              newOpts.pause != curOpts.pause;
+            var addrsChanged = newOpts.addrs.length != curOpts.addrs.length;
+
+            for (let i = 0; !addrsChanged && i < newOpts.addrs.length; i++) {
+                if (newOpts.addrs[i] != curOpts.addrs[i]) {
+                    addrsChanged = true;
+                }
+            }
+
+            if (optsChanged || addrsChanged) {
+                console.log('Saving options to server...');
+                ajax('PUT', '/api/target/' + this.props.kind.name, 'text', function(res) {
+                    console.log('Server accepted options update.');
+                    var newNonce = parseInt(res, 10);
+                    newOpts.nonce = newNonce;
+                    var newState = {
+                        options: newOpts,
+                        optionsMode: false
+                    };
+                    if (addrsChanged) {
+                        // if the addrs has changed, we must invalidate the graph
+                        this.data = null;
+                        newState.leftLimit = currentTime();
+                    }
+                    this.setState(newState, function() {
+                        this.persistentDataRetrieve(this.state.preset);
+                    }.bind(this));
+                }.bind(this), function(err) {
+                    consoloe.log('Failed to update options on server! ' + err);
+                }.bind(this), JSON.stringify(newOpts))
+            }
+
+            delete this.optionsComponent;
         }
     }
 
@@ -356,6 +395,9 @@ class Target extends Component {
                 }, 'Save')
             ];
             controls = h(Options, {
+                ref: (o) => {
+                    this.optionsComponent = o;
+                },
                 kind: this.props.kind,
                 options: this.state.options
             });

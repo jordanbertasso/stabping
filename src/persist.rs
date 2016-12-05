@@ -1,17 +1,17 @@
 use std::fmt;
 use std::fmt::Display;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::io::Write;
 use std::io::BufReader;
-use std::sync::{RwLock, RwLockReadGuard};
+use std::sync::{Mutex, RwLock, RwLockReadGuard};
 use std::ops::Deref;
 use std::iter;
 use std::iter::Extend;
 
-use helpers::{SPIOError, SPFile, VecIntoRawBytes};
+use helpers::{SPIOError, SPFile, VecIntoRawBytes, overwrite_json};
 use options::{TargetKind, TargetOptions, TargetResults, SENTINEL_NODATA};
 
 #[derive(Debug)]
@@ -115,7 +115,7 @@ pub struct TargetManager {
     pub kind: &'static TargetKind,
     index: RwLock<AddrIndex>,
     data_file: RwLock<File>,
-    options_file: RwLock<File>,
+    options_path: Mutex<PathBuf>,
     options: RwLock<TargetOptions>,
 }
 
@@ -131,7 +131,8 @@ impl TargetManager {
         );
 
         path.pop();
-        path.push(format!("{}.options.json", kind.compact_name()));
+        let options_file_name = format!("{}.options.json", kind.compact_name());
+        path.push(&options_file_name);
         let mut options_file = try!(
             File::open_from(OpenOptions::new().read(true).write(true).create(true), &path)
             .map_err(|e| ManagerError::OptionsFileIO(e))
@@ -146,7 +147,7 @@ impl TargetManager {
         } else {
             let default_options = kind.default_options();
             try!(
-                options_file.overwrite_json_p(&default_options, &path)
+                options_file.write_json_p(&default_options, &path)
                 .map_err(|e| ManagerError::OptionsFileIO(e))
             );
             default_options
@@ -157,12 +158,15 @@ impl TargetManager {
         let mut index = try!(AddrIndex::from_path(&path));
         try!(index.ensure_for_addrs(options.addrs.iter()));
 
+        // leave the path to the options file here so we can store it
+        path.pop();
+        path.push(options_file_name);
 
         Ok(TargetManager {
             kind: kind,
             index: RwLock::new(index),
             data_file: RwLock::new(data_file),
-            options_file: RwLock::new(options_file),
+            options_path: Mutex::new(path),
             options: RwLock::new(options),
         })
     }
@@ -173,13 +177,14 @@ impl TargetManager {
 
     pub fn options_update(&self, new_options: TargetOptions) -> Result<(), ManagerError> {
         let mut guard = self.options.write().unwrap();
-        let mut options_file = self.options_file.write().unwrap();
+        let mut options_path = self.options_path.lock().unwrap();
         *guard = new_options;
         try!(
-            options_file.overwrite_json(&*guard)
+            overwrite_json(&*guard, &*options_path)
             .map_err(|e| ManagerError::OptionsFileIO(e))
         );
         try!(self.index.write().unwrap().ensure_for_addrs(guard.addrs.iter()));
+        println!("Updated options: {:?}", *guard);
         Ok(())
     }
 

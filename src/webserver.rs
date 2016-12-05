@@ -159,20 +159,21 @@ impl Handler for TargetHandler {
                     return Err(IronError::new(SPWebError::NonceConflict, status::Conflict));
                 }
 
-                {
+                let new_nonce = {
                     let (n, over) = new_options.nonce.overflowing_add(1);
                     if over {
-                        new_options.nonce = 0;
+                        0
                     } else {
-                        new_options.nonce = n;
+                        n
                     }
-                }
+                };
+                new_options.nonce = new_nonce;
 
                 try!(
                     self.manager.options_update(new_options)
                     .map_err(|_| IronError::new(SPWebError::ServerError, status::InternalServerError))
                 );
-                Ok(Response::with((status::Ok)))
+                Ok(Response::with((format!("{}", new_nonce), status::Ok)))
             },
             _ => Err(IronError::new(SPWebError::InvalidMethod, status::MethodNotAllowed))
         }

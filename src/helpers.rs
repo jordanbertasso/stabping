@@ -76,14 +76,14 @@ pub trait SPFile {
     }
 
 
-    fn _overwrite_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError>;
+    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError>;
 
-    fn overwrite_json<'b, T: Encodable>(&mut self, obj: &'b T) -> Result<(), SPIOError> {
-        self._overwrite_json(obj, None)
+    fn write_json<'b, T: Encodable>(&mut self, obj: &'b T) -> Result<(), SPIOError> {
+        self._write_json(obj, None)
     }
 
-    fn overwrite_json_p<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: &'a Path) -> Result<(), SPIOError> {
-        self._overwrite_json(obj, Some(path))
+    fn write_json_p<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: &'a Path) -> Result<(), SPIOError> {
+        self._write_json(obj, Some(path))
     }
 
     fn _length<'a>(&mut self, path: Option<&'a Path>) -> Result<u64, SPIOError>;
@@ -115,14 +115,14 @@ impl SPFile for File {
             .map_err(|_| SPIOError::Parse(path.map(|p| p.to_owned())))
     }
 
-    fn _overwrite_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError> {
+    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError> {
         let buffer = json::encode(obj).unwrap();
         try!(
-            self.set_len(0)
+            self.write_all(buffer.as_bytes())
             .map_err(|_| SPIOError::Write(path.map(|p| p.to_owned())))
         );
         try!(
-            self.write_all(buffer.as_bytes())
+            self.flush()
             .map_err(|_| SPIOError::Write(path.map(|p| p.to_owned())))
         );
         Ok(())
@@ -135,4 +135,14 @@ impl SPFile for File {
         );
         Ok(meta.len())
     }
+}
+
+pub fn overwrite_json<'a, 'b, T: Encodable>(obj: &'a T, path: &'b Path) -> Result<(), SPIOError> {
+    let mut file = try!(
+        OpenOptions::new().write(true).truncate(true).create(true).open(path)
+        .map_err(|_| SPIOError::Open(Some(path.to_owned())))
+    );
+
+    try!(file.write_json_p(obj, path));
+    Ok(())
 }
