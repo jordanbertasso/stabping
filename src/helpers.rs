@@ -1,3 +1,7 @@
+/*!
+ * Helper traits and functions for reducing verbosity, wraping errors, and
+ * containing unsafe code for many commonly used I/O and parsing operations.
+ */
 use std::mem;
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
@@ -6,6 +10,11 @@ use std::io::{Read, Write};
 
 use rustc_serialize::{json, Encodable, Decodable};
 
+/**
+ * Stabping-specific I/O error container, representing the possible failrue
+ * cases when working with files, and wrapping an optional path (if one is
+ * known).
+ */
 #[derive(Debug)]
 pub enum SPIOError {
     Open(Option<PathBuf>),
@@ -44,6 +53,10 @@ impl Display for SPIOError {
 }
 
 
+/**
+ * Trait for turning arbitrary data into a series of bytes that can be put directly
+ * into a file or onto the network.
+ */
 pub trait VecIntoRawBytes {
     fn into_raw_bytes(self) -> Vec<u8>;
 }
@@ -62,39 +75,57 @@ impl VecIntoRawBytes for Vec<i32> {
     }
 }
 
+/**
+ * Expands the functionality of `File` to include JSON encoding, a
+ * generalized `open()` and streamlined access to `metadata.length`. All
+ * methods return a `Result<_, SPIOError>`, the `Result` wrapping the error
+ * container from this module.
+ *
+ * Methods come in "basic" and `_p`/"with optional path" form. They accomplish
+ * the same thing, except one takes an optional path that will be wrapped in
+ * the error container if an error is encountered.
+ */
 pub trait SPFile {
+    /**
+     * Opens a file from the given path with the given `OpenOptions`.
+     */
     fn open_from<'a, 'b>(oo: &'b mut OpenOptions, path: &'a Path) -> Result<File, SPIOError>;
 
-    fn _read_json<'a, T: Decodable>(&mut self, path: Option<&'a Path>) -> Result<T, SPIOError>;
-
+    /**
+     * Attempts to read from this file and decode all its contents as a JSON
+     * object (`rustc::Decodable`).
+     */
     fn read_json<T: Decodable>(&mut self) -> Result<T, SPIOError> {
         self._read_json(None)
     }
-
     fn read_json_p<'a, T: Decodable>(&mut self, path: &'a Path) -> Result<T, SPIOError> {
         self._read_json(Some(path))
     }
+    fn _read_json<'a, T: Decodable>(&mut self, path: Option<&'a Path>) -> Result<T, SPIOError>;
 
 
-    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError>;
-
+    /**
+     * Attempts to write a JSON object (`rustc::Encodable`) to this file.
+     */
     fn write_json<'b, T: Encodable>(&mut self, obj: &'b T) -> Result<(), SPIOError> {
         self._write_json(obj, None)
     }
-
     fn write_json_p<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: &'a Path) -> Result<(), SPIOError> {
         self._write_json(obj, Some(path))
     }
+    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError>;
 
-    fn _length<'a>(&mut self, path: Option<&'a Path>) -> Result<u64, SPIOError>;
 
+    /**
+     * Attempts to obtain the length of this file from filesystem metadata.
+     */
     fn length(&mut self) -> Result<u64, SPIOError> {
         self._length(None)
     }
-
     fn length_p<'a>(&mut self, path: &'a Path) -> Result<u64, SPIOError> {
         self._length(Some(path))
     }
+    fn _length<'a>(&mut self, path: Option<&'a Path>) -> Result<u64, SPIOError>;
 }
 
 impl SPFile for File {
@@ -137,6 +168,10 @@ impl SPFile for File {
     }
 }
 
+/**
+ * Overwrite (create if necessary, truncate if already exists) the file
+ * residing at the given path with the given JSON object (`rustc::Encodable`).
+ */
 pub fn overwrite_json<'a, 'b, T: Encodable>(obj: &'a T, path: &'b Path) -> Result<(), SPIOError> {
     let mut file = try!(
         OpenOptions::new().write(true).truncate(true).create(true).open(path)

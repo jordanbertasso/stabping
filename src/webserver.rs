@@ -21,6 +21,9 @@ use reader::{SPDataReader, DataRequest};
 use persist::{TargetManager, ManagerError};
 use options::{MainConfiguration, TargetOptions};
 
+/**
+ * Stabping-specific web error container for use in Iron web responses.
+ */
 #[derive(Debug)]
 enum SPWebError {
     NotFound,
@@ -51,14 +54,26 @@ impl fmt::Display for SPWebError {
 }
 
 
+/**
+ * A container for compiled-in binary and text web assets that are to be
+ * statically served at the /assets endpoint.
+ */
 enum WebAssetContainer {
     Binary(&'static [u8]),
     Text(&'static str)
 }
 
+/*
+ * Include (at compile-time) the web assets discovered during the build
+ * process. See build.rs for details.
+ */
 include!(concat!(env!("OUT_DIR"), "/webassets_handler_body.rs"));
 
+/**
+ * A handler for the /assets endpoint to serve up the compiled-in assets.
+ */
 fn webassets_handler(req: &mut Request) -> IronResult<Response> {
+    // serve the appropriate path, or index.html if none specified
     let path = {
         let p = req.url.path()[0];
         if p.len() > 0 {
@@ -81,6 +96,10 @@ fn webassets_handler(req: &mut Request) -> IronResult<Response> {
     }
 }
 
+/**
+ * Helper trait for reading JSON from HTTP request bodies (as in e.g. POST
+ * requests).
+ */
 trait JsonBody {
     fn read_json<T: Decodable>(&mut self) -> Result<T, IronError>;
 }
@@ -107,6 +126,10 @@ impl<'a, 'b> JsonBody for Body<'a, 'b> {
     }
 }
 
+/**
+ * Handler for each /api/target endpoint that handles returning and updating
+ * target options, and retrieving persisted target data.
+ */
 struct TargetHandler {
     manager: Arc<TargetManager>,
 }
@@ -122,8 +145,7 @@ impl TargetHandler {
 impl Handler for TargetHandler {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
         match req.method {
-            Method::Get => {
-                // retrieve options
+            Method::Get => { /* Get Options */
                 println!("Request for {} options.", self.manager.kind.compact_name());
                 let options_ser = {
                     let options_guard = self.manager.options_read();
@@ -131,12 +153,13 @@ impl Handler for TargetHandler {
                 };
                 Ok(Response::with((status::Ok, options_ser)))
             },
-            Method::Post => {
-                // retrieve data
+            Method::Post => { /* Retrieve Data */
+                // try and get the parameters of the request
                 let dr: DataRequest = try!(req.body.read_json());
                 println!("Request for {} data: {:?}", self.manager.kind.compact_name(), dr);
 
                 let body_writer = try!(
+                    // try and create a data reader out of this request
                     SPDataReader::new(self.manager.clone(), dr)
                     .ok_or_else(|| {
                         println!("Failed to create SPDataReader.");
@@ -144,6 +167,7 @@ impl Handler for TargetHandler {
                     })
                 );
 
+                // respond with the data reader (aka. body writer) as the body
                 let r = Response::with((status::Ok));
                 Ok(Response {
                     status: r.status,
@@ -152,13 +176,16 @@ impl Handler for TargetHandler {
                     body: Some(Box::new(body_writer)),
                 })
             },
-            Method::Put => {
-                // update options
+            Method::Put => { /* Update Options */
+                // try and get the new/updated options from the request
                 let mut new_options: TargetOptions = try!(req.body.read_json());
+
+                // make sure the received nonce matches the existing nonce
                 if new_options.nonce != self.manager.options_read().nonce {
                     return Err(IronError::new(SPWebError::NonceConflict, status::Conflict));
                 }
 
+                // increment (and wrap-around if necessary) the nonce
                 let new_nonce = {
                     let (n, over) = new_options.nonce.overflowing_add(1);
                     if over {
@@ -169,6 +196,7 @@ impl Handler for TargetHandler {
                 };
                 new_options.nonce = new_nonce;
 
+                // actually update the options via the manager
                 try!(
                     self.manager.options_update(new_options)
                     .map_err(|_| IronError::new(SPWebError::ServerError, status::InternalServerError))
@@ -181,18 +209,29 @@ impl Handler for TargetHandler {
 }
 
 
+/**
+ * Creates and starts the web server given the configuration (with the web
+ * port) and a list of target managers.
+ */
 pub fn web_server<'a, T>(configuration: Arc<RwLock<MainConfiguration>>,
                          targets: T) -> thread::JoinHandle<()>
                          where T: Iterator<Item=&'a Arc<TargetManager>> {
+    let mut router = Router::new();
+
+    // serve index.html at root
+    router.get("/", webassets_handler, "index");
+
+    /*
+     * serve the websockets port at /api/config/ws_port so that clients know
+     * how to connect to the websockets server
+     */
     let ws_port_str = format!("{}", configuration.read().unwrap().ws_port);
     let ws_port_handler = move |_: &mut Request| -> IronResult<Response> {
         Ok(Response::with((status::Ok, ws_port_str.as_str())))
     };
-
-    let mut router = Router::new();
-    router.get("/", webassets_handler, "index");
     router.get("/api/config/ws_port", ws_port_handler, "api_config_ws_port");
 
+    // route each /api/target/... endpoint to the appropriate TargetHandler
     for tm in targets {
         router.any(format!("/api/target/{}", tm.kind.compact_name()),
                    TargetHandler::new(tm.clone()),
@@ -201,10 +240,13 @@ pub fn web_server<'a, T>(configuration: Arc<RwLock<MainConfiguration>>,
 
     let mut mount = Mount::new();
     mount.mount("/", router);
+
+    // serve the web assets (via the web assets handler) at /assets
     mount.mount("/assets/", webassets_handler);
 
     let iron = Iron::new(mount);
 
+    // actually spawn the Iron web server in a new thread
     let web_port = configuration.read().unwrap().web_port;
     thread::spawn(move || {
         println!("Web server listening on port {}.", web_port);
