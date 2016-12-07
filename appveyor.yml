@@ -6,14 +6,12 @@ environment:
     secure: rTifpMhoPie2JusCTOo6BlLMPzsuLgVkzbM0cQnD9TboCvjaXI+4xx/Zr6lkOQ3r
 
 install:
-  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-${env:RUST_VERSION}-${env:TARGET}.exe"
-  - ps: Start-Process -FilePath "rust-${env:RUST_VERSION}-${env:TARGET}.exe" -ArgumentList "/VERYSILENT /NORESTART /DIR='C:\Rust'"
-  - ps: Tree 'C:\Rust'
-  - ps: Start-Process -FilePath 'C:\Rust\bin\rustc.exe' -ArgumentList '--version'
-  - ps: Start-Process -FilePath 'C:\Rust\bin\cargo.exe' -ArgumentList '--version'
+  - ps: Start-Process -FilePath 'choco' -ArgumentList 'install rust'
+  - ps: Start-Process -FilePath 'rustc' -ArgumentList '--version'
+  - ps: Start-Process -FilePath 'cargo' -ArgumentList '--version'
 
 build_script:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Rust\bin\cargo.exe' -ArgumentList "build --release --target=${env:TARGET}" } else { Start-Process -FilePath 'C:\Rust\bin\cargo.exe' -ArgumentList "build --target=${env:TARGET}" }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'cargo' -ArgumentList "build --release --target=${env:TARGET}" } else { Start-Process -FilePath 'cargo' -ArgumentList "build --target=${env:TARGET}" }
   - ps: Tree 'target'
 
 after_build:
