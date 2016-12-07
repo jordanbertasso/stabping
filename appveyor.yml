@@ -11,6 +11,8 @@ install:
   - ps: $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
   - ps: rustc '--version'
   - ps: cargo '--version'
+  - ps: node '--version'
+  - ps: npm '--version'
 
 build_script:
   - ps: if ( $env:APPVEYOR_REPO_TAG ) { cargo build '--release' "--target=${env:TARGET}" } else { cargo build "--target=${env:TARGET}" }
