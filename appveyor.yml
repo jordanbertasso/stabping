@@ -7,12 +7,10 @@ environment:
 
 install:
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-${env:RUST_VERSION}-${env:TARGET}.exe"
-  - ps: Start-Process -FilePath "rust-${env:RUST_VERSION}-${env:TARGET}.exe" -ArgumentList "/VERYSILENT /NORESTART /DIR='C:\Program Files\Rust'"
-
-before_build:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Program Files\Rust\cargo' -ArgumentList "build --release --target=${env:TARGET}" } else { Start-Process -FilePath 'C:\Program Files\Rust\cargo' -ArgumentList "build --target=${env:TARGET}" }
+  - ps: Start-Process -FilePath "rust-${env:RUST_VERSION}-${env:TARGET}.exe" -ArgumentList "/VERYSILENT /NORESTART /DIR='C:\Rust'"
+  - ps: Start-Process -FilePath 'C:\Rust\bin\rustc.exe' -ArgumentList '--version'
+  - ps: Start-Process -FilePath 'C:\Rust\bin\cargo.exe' -ArgumentList '--version'
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Rust\bin\cargo.exe' -ArgumentList "build --release --target=${env:TARGET}" } else { Start-Process -FilePath 'C:\Rust\bin\cargo.exe' -ArgumentList "build --target=${env:TARGET}" }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Python35\python.exe' -ArgumentList 'release.py' }
 
 build: false
-
-after_build:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Python35\python' -ArgumentList 'release.py' }
