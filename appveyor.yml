@@ -15,9 +15,9 @@ install:
   - ps: npm '--version'
 
 build_script:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { cargo build '--release' "--target=${env:TARGET}" } else { cargo build "--target=${env:TARGET}" }
+  - ps: if ( $env:APPVEYOR_REPO_TAG_NAME ) { cargo build '--release' "--target=${env:TARGET}" 2>&1 } else { cargo build "--target=${env:TARGET}" 2>&1 }
   - ps: Tree 'target'
 
 after_build:
   - ps: $env:Path = "C:\Python35;${env:PATH}"
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { python 'release.py' }
+  - ps: if ( $env:APPVEYOR_REPO_TAG_NAME ) { python 'release.py' 2>&1 }

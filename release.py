@@ -68,7 +68,10 @@ def consolidate_artifacts():
     ENV.cd_root()
     print_e('------ Artifact Consolidation Routine ------')
 
-    binary = ENV.path('target/{}/release/stabping'.format(ENV.target))
+    if ENV.os_type == 'windows':
+        binary = ENV.path('target/{}/release/stabping.exe'.format(ENV.target))
+    else:
+        binary = ENV.path('target/{}/release/stabping'.format(ENV.target))
     target_zip = 'stabping-{}-{}.zip'.format(ENV.release_version, ENV.target)
 
     sample_cfg = ENV.path('stabping_config.json')
