@@ -40,6 +40,19 @@ class Environment:
 
             self.can_release = os.getenv('CAN_RELEASE', False)
             self.github_release_api_token = os.getenv('SEC_GH_API_KEY')
+        elif 'APPVEYOR' in os.environ:
+            self.is_host = True
+            self.target = os.getenv('TARGET', None)
+            if not self.target:
+                raise BuildError('TARGET not specified')
+
+            self.os_type = 'windows'
+            self.root_dir = os.getenv('APPVEYOR_BUILD_FOLDER', self.root_dir)
+            self.release_build = bool(os.getenv('APPVEYOR_REPO_TAG', None))
+            self.release_version = os.getenv('APPVEYOR_REPO_TAG_NAME', None)
+
+            self.can_release = os.getenv('CAN_RELEASE', False)
+            self.github_release_api_token = os.getenv('SEC_GH_API_KEY')
 
     def cd_root(self):
         os.chdir(self.root_dir)
