@@ -7,13 +7,12 @@ environment:
 
 install:
   - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-${env:RUST_VERSION}-${env:TARGET}.exe"
-  - ps: & "rust-${env:RUST_VERSION}-${env:TARGET}.exe" /VERYSILENT /NORESTART /DIR="C:\Program Files\Rust"
+  - ps: Start-Process -FilePath "rust-${env:RUST_VERSION}-${env:TARGET}.exe" -ArgumentList "/VERYSILENT /NORESTART /DIR='C:\Program Files\Rust'"
 
 before_build:
-  - ps: $env:PATH='C:\Program Files\Rust\bin;C:\MinGW\bin;C:\Python35-x64;'${env:PATH}
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { & 'cargo' 'build' '--release' "--target=${env:TARGET}" } else { & 'cargo' 'build' "--target=${env:TARGET}" }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Program Files\Rust\cargo' -ArgumentList "build --release --target=${env:TARGET}" } else { Start-Process -FilePath 'C:\Program Files\Rust\cargo' -ArgumentList "build --target=${env:TARGET}" }
 
 build: false
 
 after_build:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { & 'python' 'release.py' }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Python35\python' -ArgumentList 'release.py' }
