@@ -24,11 +24,19 @@ fn main() {
     let proj_dir = env::current_dir().unwrap();
     let client_dir = proj_dir.join("client");
 
-    match Command::new("npm")
+    let output = Command::new("npm")
                   .arg("install")
-                  .current_dir(&client_dir).status() {
-        Ok(s) if s.success() => (),
-        _ => panic!("'npm install' of dependencies failed.")
+                  .current_dir(&client_dir)
+                  .output()
+                  .expect("Failed to execute 'npm install'.");
+
+    println!("---- npm install's stdout ----");
+    println!("{}", String::from_utf8_lossy(&output.stdout));
+    println!("---- npm install's stderr ----");
+    println!("{}", String::from_utf8_lossy(&output.stderr));
+
+    if !output.status.success() {
+        panic!("'npm install' did not succeed.")
     }
 
     let assets_out_dir = out_dir.join("assets");
