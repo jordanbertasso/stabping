@@ -6,13 +6,13 @@ environment:
     secure: rTifpMhoPie2JusCTOo6BlLMPzsuLgVkzbM0cQnD9TboCvjaXI+4xx/Zr6lkOQ3r
 
 install:
-  - ps: Start-Process -FilePath 'choco' -ArgumentList 'install rust'
-  - ps: Start-Process -FilePath 'rustc' -ArgumentList '--version'
-  - ps: Start-Process -FilePath 'cargo' -ArgumentList '--version'
+  - ps: Start-Process -FilePath 'choco' -ArgumentList 'install rust' -Wait
+  - ps: Start-Process -FilePath 'rustc' -ArgumentList '--version' -Wait
+  - ps: Start-Process -FilePath 'cargo' -ArgumentList '--version' -Wait
 
 build_script:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'cargo' -ArgumentList "build --release --target=${env:TARGET}" } else { Start-Process -FilePath 'cargo' -ArgumentList "build --target=${env:TARGET}" }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'cargo' -ArgumentList "build --release --target=${env:TARGET}" -Wait } else { Start-Process -FilePath 'cargo' -ArgumentList "build --target=${env:TARGET}" -Wait }
   - ps: Tree 'target'
 
 after_build:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Python35\python.exe' -ArgumentList 'release.py' }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Python35\python.exe' -ArgumentList 'release.py' -Wait }
