@@ -3,8 +3,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
-use std::process::ExitStatus;
+use std::process::{Command, Stdio};
 
 static ASSET_FILES: &'static [&'static str] = &[
     "node_modules/mozilla-fira-pack/Fira/woff/FiraMono-Regular.woff",
@@ -24,31 +23,28 @@ fn main() {
     let proj_dir = env::current_dir().unwrap();
     let client_dir = proj_dir.join("client");
 
-    let output =  match Command::new("npm")
+    let status =  match Command::new("npm")
                                 .arg("install")
                                 .current_dir(&client_dir)
-                                .output() {
+                                .status() {
         Ok(o) => o,
-        Err(e1) => match Command::new("npm.exe")
+        Err(e1) => match Command::new("npm.cmd")
                                  .arg("install")
                                  .current_dir(&client_dir)
-                                 .output() {
+                                 .stdout(Stdio::null())
+                                 .stderr(Stdio::null())
+                                 .status() {
             Ok(o) => o,
             Err(e2) => {
-                println!("Tried both npm and npm.exe, neither worked");
+                println!("Tried both npm and npm.cmd, neither worked");
                 println!("Error encountered for 'npm install': {:?}", e1);
-                println!("Error encountered for 'npm.exe install': {:?}", e2);
+                println!("Error encountered for 'npm.cmd install': {:?}", e2);
                 panic!("Failed to execute NPM.");
             }
         }
     };
 
-    println!("---- npm install's stdout ----");
-    println!("{}", String::from_utf8_lossy(&output.stdout));
-    println!("---- npm install's stderr ----");
-    println!("{}", String::from_utf8_lossy(&output.stderr));
-
-    if !output.status.success() {
+    if !status.success() {
         panic!("'npm install' did not succeed.")
     }
 
@@ -73,7 +69,7 @@ fn main() {
             _ => "text/plain"
         };
         let match_arm = format!(
-            "\"{}\" => Some(({}\"{}\")), \"{}\")),\n",
+            "r#\"{}\"# => Some(({}r#\"{}\"#)), \"{}\")),\n",
             asset_filename.to_str().unwrap(),
             match ext {
                 "woff" => "WebAssetContainer::Binary(include_bytes!(",
