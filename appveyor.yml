@@ -7,6 +7,7 @@ environment:
 
 install:
   - ps: Start-Process -FilePath 'choco' -ArgumentList 'install rust' -Wait
+  - ps: $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
   - ps: Start-Process -FilePath 'rustc' -ArgumentList '--version' -Wait
   - ps: Start-Process -FilePath 'cargo' -ArgumentList '--version' -Wait
 
