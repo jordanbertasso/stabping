@@ -9,7 +9,7 @@ the graph.
 
 ## The Stack ##
 
-Stabping's server component is written in [Rust](https://rust-lang.org/) with
+Stabping's server component is written in [Rust](https://www.rust-lang.org/) with
 the [Iron](http://ironframework.io/) web framework. We chose this stack a)
 because we love Rust, and b) so that we could achieve good performance on
 low-powered hardware such as the Raspberry Pi.
@@ -192,7 +192,7 @@ Each `Target` Component includes a *preset* selector that specifies how far
 back the view of the graph should span. On load and when this *preset* changes
 the client `POST`s to `/api/target/<kind>` for data as necessary to fetch data
 that it doesn't already have. Each `Target` Component keeps track of how much
-data it already has via a `state.leftLimit` which is the lower time bound of
+data it already has via `state.leftLimit` which is the lower time bound of
 the data it has. In-browser, the data is stored directly in the format the
 Dygraphs understands, an large array of [time, value1, value2, ...] arrays
 representing each datapoint.
