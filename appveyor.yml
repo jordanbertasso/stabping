@@ -6,14 +6,14 @@ environment:
     secure: rTifpMhoPie2JusCTOo6BlLMPzsuLgVkzbM0cQnD9TboCvjaXI+4xx/Zr6lkOQ3r
 
 install:
-  - ps: Start-Process -FilePath 'choco' -ArgumentList 'install rust' -Wait
+  - ps: Start-Process -FilePath 'choco' -ArgumentList 'install rust' -Wait -NoNewWindow
   - ps: $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-  - ps: Start-Process -FilePath 'rustc' -ArgumentList '--version' -Wait
-  - ps: Start-Process -FilePath 'cargo' -ArgumentList '--version' -Wait
+  - ps: Start-Process -FilePath 'rustc' -ArgumentList '--version' -Wait -NoNewWindow
+  - ps: Start-Process -FilePath 'cargo' -ArgumentList '--version' -Wait -NoNewWindow
 
 build_script:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'cargo' -ArgumentList "build --release --target=${env:TARGET}" -Wait } else { Start-Process -FilePath 'cargo' -ArgumentList "build --target=${env:TARGET}" -Wait }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'cargo' -ArgumentList "build --release --target=${env:TARGET}" -Wait -NoNewWindow } else { Start-Process -FilePath 'cargo' -ArgumentList "build --target=${env:TARGET}" -Wait -NoNewWindow }
   - ps: Tree 'target'
 
 after_build:
-  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Python35\python.exe' -ArgumentList 'release.py' -Wait }
+  - ps: if ( $env:APPVEYOR_REPO_TAG ) { Start-Process -FilePath 'C:\Python35\python.exe' -ArgumentList 'release.py' -Wait -NoNewWindow }
