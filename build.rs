@@ -24,11 +24,24 @@ fn main() {
     let proj_dir = env::current_dir().unwrap();
     let client_dir = proj_dir.join("client");
 
-    let output = Command::new("npm")
-                  .arg("install")
-                  .current_dir(&client_dir)
-                  .output()
-                  .expect("Failed to execute 'npm install'.");
+    let output =  match Command::new("npm")
+                                .arg("install")
+                                .current_dir(&client_dir)
+                                .output() {
+        Ok(o) => o,
+        Err(e1) => match Command::new("npm.exe")
+                                 .arg("install")
+                                 .current_dir(&client_dir)
+                                 .output() {
+            Ok(o) => o,
+            Err(e2) => {
+                println!("Tried both npm and npm.exe, neither worked");
+                println!("Error encountered for 'npm install': {:?}", e1);
+                println!("Error encountered for 'npm.exe install': {:?}", e2);
+                panic!("Failed to execute NPM.");
+            }
+        }
+    };
 
     println!("---- npm install's stdout ----");
     println!("{}", String::from_utf8_lossy(&output.stdout));
