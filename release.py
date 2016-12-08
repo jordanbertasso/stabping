@@ -83,6 +83,9 @@ def consolidate_artifacts():
         with ZipFile(target_zip, 'w') as zipped:
             zipped.write(binary, arcname=os.path.basename(binary))
             zipped.write(sample_cfg, arcname=os.path.basename(sample_cfg))
+            zipped.write(ENV.path('README.md'), arcname='README.md')
+            zipped.write(ENV.path('COPYING'), arcname='COPYING')
+            zipped.write(ENV.path('LICENSE'), arcname='LICENSE')
     else:
         raise BuildError('Failed to find binary: {}'.format(binary))
 

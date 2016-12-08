@@ -1,6 +1,6 @@
 [package]
 name = "stabping"
-version = "0.1.3"
+version = "0.9.1"
 authors = ["icasdri <icasdri@gmail.com>"]
 build = "build.rs"
 

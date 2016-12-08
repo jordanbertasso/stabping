@@ -1,5 +1,8 @@
 # Stabping
 
+[![Travis Build Status](https://travis-ci.org/icasdri/stabping.svg?branch=master)](https://travis-ci.org/icasdri/stabping)
+[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/5qi6atyjt69nsmkx?svg=true)](https://ci.appveyor.com/project/icasdri/stabping)
+
 **Stabping** is a lightweight and simple-to-use network connection monitor. It
 continuously tests latency (speed and other metrics coming soon) in a
 user-configurable fashion and allows you to view the data in live interactive
@@ -58,9 +61,9 @@ the computer you're running `stabping` or `stabping.exe` on (if you ran it on
 your local computer, this would be `localhost`), and `web_port` is the
 web-listening port specified in `stabping_config.json` (by default `5001`).
 
-*tl;dr* extract the zip, run `stabping` or `stabping.exe`, and go to
+**tl;dr** extract the zip, run `stabping` or `stabping.exe`, and go to
 `http://localhost:5001` in a web browser (assuming you're running on your local
-computer with the default configuration)
+computer with the default configuration).
 
 #### Using the Web Interface
 
