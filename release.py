@@ -48,8 +48,9 @@ class Environment:
 
             self.os_type = 'windows'
             self.root_dir = os.getenv('APPVEYOR_BUILD_FOLDER', self.root_dir)
-            self.release_build = bool(os.getenv('APPVEYOR_REPO_TAG', None))
-            self.release_version = os.getenv('APPVEYOR_REPO_TAG_NAME', None)
+            tag = os.getenv('APPVEYOR_REPO_TAG_NAME', None)
+            self.release_build = tag and len(tag.strip()) > 0
+            self.release_version = tag
 
             self.can_release = os.getenv('CAN_RELEASE', False)
             self.github_release_api_token = os.getenv('SEC_GH_API_KEY')
@@ -69,7 +70,7 @@ def consolidate_artifacts():
     print_e('------ Artifact Consolidation Routine ------')
 
     if ENV.os_type == 'windows':
-        binary = ENV.path('target/{}/release/stabping.exe'.format(ENV.target))
+        binary = ENV.path(r'target\{}\release\stabping.exe'.format(ENV.target))
     else:
         binary = ENV.path('target/{}/release/stabping'.format(ENV.target))
     target_zip = 'stabping-{}-{}.zip'.format(ENV.release_version, ENV.target)

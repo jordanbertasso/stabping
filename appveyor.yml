@@ -1,3 +1,5 @@
+version: '{build}'
+
 environment:
   CAN_RELEASE: true
   RUST_VERSION: 1.13.0
