@@ -1,3 +1,11 @@
+/*
+ * Copyright 2016 icasdri
+ *
+ * This file is part of stabping. The original source code for stabping can be
+ * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
+ * details.
+ */
+
 /*!
  * Helper traits and functions for reducing verbosity, wraping errors, and
  * containing unsafe code for many commonly used I/O and parsing operations.

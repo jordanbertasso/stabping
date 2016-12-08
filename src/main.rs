@@ -1,3 +1,11 @@
+/*
+ * Copyright 2016 icasdri
+ *
+ * This file is part of stabping. The original source code for stabping can be
+ * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
+ * details.
+ */
+
 extern crate chrono;
 extern crate time;
 extern crate rustc_serialize;

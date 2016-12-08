@@ -1,3 +1,11 @@
+/*
+ * Copyright 2016 icasdri
+ *
+ * This file is part of stabping. The original source code for stabping can be
+ * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
+ * details.
+ */
+
 use std::path::Path;
 use std::thread;
 use std::sync::Arc;
