@@ -148,7 +148,6 @@ class Graph extends Component {
     constructor() {
         super();
         this.graph = null;
-        this.pinnedRange = null;
     }
 
     componentDidMount() {
@@ -165,6 +164,7 @@ class Graph extends Component {
             this.base,  // the root div of this Component
             [[0]],
             {
+                animatedZooms: true,
                 valueFormatter: gvFormatter,
                 valueRange: autoValueRange,
                 axes: {
@@ -211,14 +211,6 @@ class Graph extends Component {
 
         if (this.graph.getOption('rollPeriod') != this.props.rollPeriod) {
             g.rollPeriod = this.props.rollPeriod;
-        }
-
-        if (this.pinnedRange == null && this.props.shouldPinRange) {
-            this.pinnedRange = this.graph.yAxisRange();
-            g.valueRange = this.pinnedRange;
-        } else if (this.pinnedRange != null && !this.props.shouldPinRange) {
-            this.pinnedRange = null;
-            g.valueRange = autoValueRange;
         }
 
         // if there are any changes we need to make, tell Dygraph to make them
@@ -350,9 +342,6 @@ class Target extends Component {
 
             // the user-inputted number of points to do rolling average over
             rollPeriod: 1,
-
-            // the user-selection of whether or not to lock the range of the graph
-            shouldPinRange: false,
 
             /*
              * whether or not the user is currently editing this target's
@@ -578,14 +567,6 @@ class Target extends Component {
                         onInput: (evt) => this.setState({rollPeriod: evt.target.value})
                     }),
                     'point(s)'
-                ]),
-                h('label', {className: 'checkbox-label'}, [
-                    h('input', {
-                        type: 'checkbox',
-                        checked: this.state.shouldPinRange,
-                        onClick: () => this.setState({shouldPinRange: !this.state.shouldPinRange})
-                    }),
-                    'Pin/lock value range'
                 ])
             ];
         }
@@ -609,8 +590,7 @@ class Target extends Component {
                 data: this.data,
                 options: this.state.options,
                 preset: this.state.preset,
-                rollPeriod: this.state.rollPeriod,
-                shouldPinRange: this.state.shouldPinRange
+                rollPeriod: this.state.rollPeriod
             }),
 
             /*
