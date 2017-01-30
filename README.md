@@ -1,7 +1,7 @@
 # Stabping
 
 [![Travis Build Status](https://travis-ci.org/icasdri/stabping.svg?branch=master)](https://travis-ci.org/icasdri/stabping)
-[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/5qi6atyjt69nsmkx?svg=true)](https://ci.appveyor.com/project/icasdri/stabping)
+[![AppVeyor Build status](https://ci.appveyor.com/api/projects/status/5qi6atyjt69nsmkx/branch/master?svg=true)](https://ci.appveyor.com/project/icasdri/stabping)
 
 **Stabping** is a lightweight and simple-to-use network connection monitor. It
 continuously tests latency (speed and other metrics coming soon) in a
