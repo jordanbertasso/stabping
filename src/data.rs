@@ -6,13 +6,15 @@
  * details.
  */
 
+use std::mem;
+use std::slice;
 use std::collections::BTreeSet;
 use std::cmp::Ordering;
 
 /**
  * Trait for extracting the bytes (as a u8 slice) out of any Sized value.
  */
-trait AsBytes {
+pub trait AsBytes {
     fn as_bytes(&self) -> &[u8];
 }
 
@@ -20,9 +22,9 @@ impl<T> AsBytes for T where T: Sized {
     fn as_bytes(&self) -> &[u8] {
         let orig_ptr: *const T = self;
         let raw = orig_ptr as *const u8;
-        let len = std::mem::size_of::<T>();
+        let len = mem::size_of::<T>();
         unsafe {
-            std::slice::from_raw_parts(raw, len)
+            slice::from_raw_parts(raw, len)
         }
     }
 }
@@ -31,7 +33,7 @@ impl<T> AsBytes for T where T: Sized {
  * Trait for generalizing over different representations of data elements
  * on-disk.
  */
-trait DataElement {
+pub trait DataElement {
     fn get_time(&self) -> u32;
     fn get_index(&self) -> u32;
     fn size_of_data_vals(&self) -> usize;
@@ -42,7 +44,7 @@ trait DataElement {
  * Representation of data elements on-disk for raw (non-averaged) collections.
  */
 #[repr(C, packed)]
-struct DiscreteDataOnDisk {
+pub struct DiscreteDataOnDisk {
     time: u32,
     index: u32,
     val: f32,  // the raw value
@@ -52,7 +54,7 @@ struct DiscreteDataOnDisk {
  * Representation of data elements on-disk for averaged collections.
  */
 #[repr(C, packed)]
-struct AveragedDataOnDisk {
+pub struct AveragedDataOnDisk {
     time: u32,
     index: u32,
     val_sd: [f32; 2],  // [averaged value, standard deviation]
@@ -61,14 +63,14 @@ struct AveragedDataOnDisk {
 impl DataElement for DiscreteDataOnDisk {
     fn get_time(&self) -> u32 { self.time }
     fn get_index(&self) -> u32 { self.index }
-    fn size_of_data_vals(&self) -> usize { std::mem::size_of_val(&self.val) }
+    fn size_of_data_vals(&self) -> usize { mem::size_of_val(&self.val) }
     fn data_vals_as_bytes(&self) -> &[u8] { self.val.as_bytes() }
 }
 
 impl DataElement for AveragedDataOnDisk {
     fn get_time(&self) -> u32 { self.time }
     fn get_index(&self) -> u32 { self.index }
-    fn size_of_data_vals(&self) -> usize { std::mem::size_of_val(&self.val_sd) }
+    fn size_of_data_vals(&self) -> usize { mem::size_of_val(&self.val_sd) }
     fn data_vals_as_bytes(&self) -> &[u8] { self.val_sd.as_bytes() }
 }
 
@@ -76,37 +78,57 @@ impl DataElement for AveragedDataOnDisk {
  * Ord (and thus Eq, PartialEq, and PartialOrd) implementation for DataElement
  * over their indices (via get_index()) so that they can be put in BTreeSets.
  */
-impl Ord for DataElement {
-    fn cmp(&self, other: &DataElement) -> Ordering {
+impl Ord for DiscreteDataOnDisk {
+    fn cmp(&self, other: &DiscreteDataOnDisk) -> Ordering {
         self.get_index().cmp(&other.get_index())
     }
 }
 
-impl PartialOrd for DataElement {
-    fn partial_cmp(&self, other: &DataElement) -> Option<Ordering> {
+impl PartialOrd for DiscreteDataOnDisk {
+    fn partial_cmp(&self, other: &DiscreteDataOnDisk) -> Option<Ordering> {
         self.get_index().partial_cmp(&other.get_index())
     }
 }
 
-impl PartialEq for DataElement {
-    fn eq(&self, other: &DataElement) -> bool {
+impl PartialEq for DiscreteDataOnDisk {
+    fn eq(&self, other: &DiscreteDataOnDisk) -> bool {
         self.get_index() == other.get_index()
     }
 }
 
-impl Eq for DataElement {}
+impl Eq for DiscreteDataOnDisk {}
+
+impl Ord for AveragedDataOnDisk {
+    fn cmp(&self, other: &AveragedDataOnDisk) -> Ordering {
+        self.get_index().cmp(&other.get_index())
+    }
+}
+
+impl PartialOrd for AveragedDataOnDisk {
+    fn partial_cmp(&self, other: &AveragedDataOnDisk) -> Option<Ordering> {
+        self.get_index().partial_cmp(&other.get_index())
+    }
+}
+
+impl PartialEq for AveragedDataOnDisk {
+    fn eq(&self, other: &AveragedDataOnDisk) -> bool {
+        self.get_index() == other.get_index()
+    }
+}
+
+impl Eq for AveragedDataOnDisk {}
 
 
-enum ToWireError {
+pub enum ToWireError {
     IncompatibleTimes
 }
 
-trait ToWire {
+pub trait ToWire {
     fn to_wire(&self, wire: &mut Vec<u8>) -> Result<(), ToWireError>;
     fn space_necessary(&self) -> usize;
 }
 
-impl<T> ToWire for BTreeSet<T> where T: DataElement {
+impl<T> ToWire for BTreeSet<T> where T: DataElement + Ord {
     fn to_wire(&self, wire: &mut Vec<u8>) -> Result<(), ToWireError> {
         let mut time = None;
 
@@ -127,6 +149,6 @@ impl<T> ToWire for BTreeSet<T> where T: DataElement {
     }
 
     fn space_necessary(&self) -> usize {
-        return 0;
+        self.len() * mem::size_of::<T>()
     }
 }

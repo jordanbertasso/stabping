@@ -28,7 +28,7 @@ pub enum TargetKind {
 static ALL_KINDS: [TargetKind; 1] = [TargetKind::TcpPing];
 
 impl TargetKind {
-    pub fn kind_id(&self) -> i32 {
+    pub fn kind_id(&self) -> usize {
         match *self {
             TargetKind::TcpPing => 0,
             TargetKind::HttpDownload => 1
@@ -89,6 +89,6 @@ impl Default for MainConfiguration {
 #[test]
 fn ensure_kind_id_and_all_kinds_order_match() {
     for (i, k) in ALL_KINDS.iter().enumerate() {
-        assert!(i as i32 == k.kind_id());
+        assert!(i == k.kind_id());
     }
 }

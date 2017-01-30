@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 icasdri
+ * Copyright 2016-2017 icasdri
  *
  * This file is part of stabping. The original source code for stabping can be
  * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
@@ -15,6 +15,7 @@ extern crate iron;
 extern crate router;
 extern crate mount;
 
+mod data;
 mod helpers;
 mod options;
 mod persist;
@@ -35,6 +36,7 @@ use rustc_serialize::json;
 
 use wsserver::Broadcaster;
 
+use data::{AsBytes, ToWire};
 use helpers::{SPIOError, SPFile, VecIntoRawBytes};
 use options::{TargetKind, MainConfiguration};
 use persist::ManagerError;
@@ -165,18 +167,17 @@ fn main() {
     /*
      * receive the live data coming from the workers and process it
      */
-    for r in results {
-        // detect which target kind these data are for
-        let kind_id = r.0[0];
-
+    for (kind, data) in results {
         // append the data to the data file via the appropriate manager
-        if let Err(e) = targets[kind_id as usize].append_data(&r) {
+        if let Err(e) = targets[kind].append_data(&r) {
             handle_fatal_error(e);
         }
 
         // broadcast the live data over websockets
-        let raw_data_bytes = r.0.into_raw_bytes();
-        let _ = broadcaster.send(raw_data_bytes);
+        let mut bytes = Vec::with_capacity(data.space_necessary());
+        bytes.extend_from_slice((kind as u32).as_bytes());
+        data.to_wire(&mut bytes);
+        let _ = broadcaster.send(bytes);
     }
 }
 

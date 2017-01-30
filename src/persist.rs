@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 icasdri
+ * Copyright 2016-2017 icasdri
  *
  * This file is part of stabping. The original source code for stabping can be
  * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
@@ -135,15 +135,15 @@ impl AddrIndex {
     /**
      * Retrieves the index associated with the given address.
      */
-    fn get_index(&self, addr: &str) -> i32 {
-        self.map.get(addr).cloned().expect("Non-existant addr requested from AddrIndex!")
+    pub fn get_index(&self, addr: &str) -> Option<u32> {
+        self.map.get(addr).cloned()
     }
 
     /**
      * Retrieves the adress associated with the given index.
      */
-    fn get_addr(&self, index: i32) -> &String {
-        self.data.get(index as usize).expect("Non-existant index requested from AddrIndex!")
+    pub fn get_addr(&self, index: u32) -> Option<&String> {
+        self.data.get(index as usize)
     }
 
     /**
@@ -238,6 +238,13 @@ impl TargetManager {
     }
 
     /**
+     * Acquires a read lock on this target's index.
+     */
+    pub fn index_read<'a>(&'a self) -> RwLockReadGuard<'a, AddrIndex> {
+        self.index.read().unwrap()
+    }
+
+    /**
      * Acquires a read lock on this target's options.
      */
     pub fn options_read<'a>(&'a self) -> RwLockReadGuard<'a, TargetOptions> {
@@ -287,7 +294,7 @@ impl TargetManager {
         let index = self.index.read().unwrap();
         for (addr, val) in self.options_read().addrs.iter().zip(in_data[3..].iter()) {
             out_data.push(time);
-            out_data.push(index.get_index(addr));
+            out_data.push(index.get_index(addr).unwrap());
             out_data.push(*val);
         }
 
@@ -320,7 +327,7 @@ impl TargetManager {
         };
 
         for addr in options.addrs.iter() {
-            let i = index.get_index(addr);
+            let i = index.get_index(addr).unwrap();
             ordered_list.push(i);
             membership[i as usize] = SENTINEL_NODATA;
         }
