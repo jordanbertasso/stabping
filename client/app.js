@@ -175,7 +175,6 @@ class Graph extends Component {
                         axisLabelFormatter: this.props.valFormatter
                     }
                 },
-                isZoomedIgnoreProgrammaticZoom: true,
                 zoomCallback: function (lowerDate, upperDate, yRanges) {
                     // update the graph with new data when the user unzooms
                     this.update();
@@ -195,12 +194,20 @@ class Graph extends Component {
         // object containing all the graph options we want to update
         var g = {};
 
-        /*
-         * only update data points, change axes, or alter range if user has not
-         * zoomed in on graph to prevent annoying surprises
-         */
-        if (!this.graph.isZoomed()) {
-            g.isZoomedIgnoreProgrammaticZoom = true;
+        var shouldUpdateData = true;
+
+        if (this.graph.isZoomed('x')) {
+            if (Math.abs(this.graph.xAxisRange()[1] - currentTime()) > 25) {
+                shouldUpdateData = false;
+            }
+        }
+
+        if (shouldUpdateData) {
+            // preserve valueRange if user has explicitly zoomed y-axis
+            if (this.graph.isZoomed('y')) {
+                g.valueRange = this.graph.yAxisRange();
+            }
+
             g.labels = ['Time'].concat(this.props.options.addrs);
 
             var h = hoursBack(this.props.preset);
@@ -371,10 +378,10 @@ class Target extends Component {
 
     /*
      * Retrieves persistent data for this target from the server for the given
-     * number of "hours back".
+     * preset.
      */
-    persistentDataRetrieve(hoursPreset) {
-        if (hoursPreset == 0) {
+    persistentDataRetrieve(preset) {
+        if (preset == 0) {
             return;
         }
 
