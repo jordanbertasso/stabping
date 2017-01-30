@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 icasdri
+ * Copyright 2016-2017 icasdri
  *
  * This file is part of stabping. The original source code for stabping can be
  * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
@@ -33,17 +33,6 @@ pub struct DataRequest {
     nonce: i32,
     lower: i32,
     upper: i32,
-}
-
-/**
- * Representation of data elements on-disk in a target's data file. They are
- * 32-bit back-to-back integers.
- */
-#[repr(C, packed)]
-struct DataElement {
-    time: i32,
-    index: i32,
-    val: i32,
 }
 
 /**

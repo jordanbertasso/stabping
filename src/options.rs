@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 icasdri
+ * Copyright 2016-2017 icasdri
  *
  * This file is part of stabping. The original source code for stabping can be
  * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
@@ -16,29 +16,9 @@ use tcpping::run_tcpping_worker;
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct TargetOptions {
-    pub nonce: i32,
-    pub addrs: Vec<String>,  // Vec of addresses (IPs to hit with TCP, files to download, etc.)
+    pub addrs: Vec<u32>,  // Vec of addr indices
     pub interval: u32,  // interval between collection attempts, in millis
-    pub avg_across: u32,  // number of sub-attempts average across for each interval
-    pub pause: u32,  // pause between sub-attempts, in millis
 }
-
-pub static SENTINEL_ERROR: i32 = -2_100_000_000;
-pub static SENTINEL_NODATA: i32 = -2_000_000_000;
-
-/*
- * Data for each address. Structured as:
- * [kind, nonce, timestamp, datapoint1, datapoint2, ...]
- *
- * where kind is the kind_id for the TargetKind this result is coming from
- * where nonce determines the state of TargetOptions when these data were collected
- * where timestamp is in seconds from epoch,
- *
- * each datapoint is for each address in TargetOptions.addrs
- * (encoding of data inside the i32 is target-defined, or one of the
- * sentinel values for error or nodata),
- */
-pub struct TargetResults(pub Vec<i32>);
 
 pub enum TargetKind {
     TcpPing,
@@ -65,11 +45,8 @@ impl TargetKind {
     pub fn default_options(&self) -> TargetOptions {
         match *self {
             TargetKind::TcpPing => TargetOptions {
-                nonce: 0,
                 addrs: vec!["google.com:80".to_owned(), "8.8.8.8:53".to_owned()],
                 interval: 10_000,
-                avg_across: 3,
-                pause: 100,
             },
             _ => unimplemented!()
         }
