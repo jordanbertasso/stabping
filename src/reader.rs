@@ -17,7 +17,7 @@ use std::io::{Write, BufWriter};
 use std::sync::Arc;
 
 use memmap::{Mmap, Protection};
-use iron::response::{WriteBody, ResponseBody};
+use iron::response::{WriteBody};
 
 use helpers::VecIntoRawBytes;
 use persist::TargetManager;
@@ -75,7 +75,7 @@ impl WriteBody for SPDataReader {
     /**
      * Writes the body of the response with the requested persistent data.
      */
-    fn write_body(&mut self, res: &mut ResponseBody) -> io::Result<()> {
+    fn write_body(&mut self, res: &mut io::Write) -> io::Result<()> {
         /*
          * acquire nonce and current indices (current state of addrs for this
          * target) from the TargetManager

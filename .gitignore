@@ -1,4 +1,5 @@
-Cargo.lock
+*.old
+*.log
 target
 view_data
 node_modules/
