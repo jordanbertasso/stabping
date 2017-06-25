@@ -43,6 +43,7 @@ pub struct Manager {
 
     index_file: RwLock<IndexFile>,
 
+    raw_data_file: RwLock<DataFile>,
     hourly_data_file: RwLock<DataFile>,
     daily_data_file: RwLock<DataFile>,
     weekly_data_file: RwLock<DataFile>,
