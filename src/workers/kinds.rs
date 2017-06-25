@@ -11,30 +11,18 @@ static ALL_NAMES: [&'static str; 1] = [
 ];
 
 impl Kind {
-    pub fn kind_id(&self) -> usize {
-        *self as usize
-    }
+    pub fn id(&self) -> usize { *self as usize }
+    pub fn name(&self) -> &'static str { ALL_NAMES[self.id()] }
 
-    pub fn name(&self) -> &'static str {
-        match *self {
-            Kind::TcpPing => "tcpping",
+    pub fn for_name<'a>(name: &'a str) -> Self {
+        match name {
+            "tcpping" => Kind::TcpPing,
         }
     }
 
-    pub fn default_options(&self) -> Options {
+    pub fn default_options_bootstrap(&self) -> (&'static str, u32) {
         match *self {
-            Kind::TcpPing =>
-                Options {
-                    addrs: Vec::new(),
-                    interval: 10_000,
-                },
-        }
-    }
-
-    pub fn run_worker(&self, manager: Arc<TargetManager>,
-                             results_out: Sender<TargetResults>) -> thread::JoinHandle<()> {
-        match *self {
-            TargetKind::TcpPing => run_tcpping_worker(manager, results_out),
+            Kind::TcpPing => ("google.com:80", 10_000)
         }
     }
 

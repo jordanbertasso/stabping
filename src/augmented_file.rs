@@ -24,22 +24,23 @@ use rustc_serialize::{json, Encodable, Decodable};
  * known).
  */
 #[derive(Debug)]
-pub enum SPIOError {
+pub enum AugmenetedFileError {
     Open(Option<PathBuf>),
     Read(Option<PathBuf>),
     Metadata(Option<PathBuf>),
     Write(Option<PathBuf>),
     Parse(Option<PathBuf>),
 }
+use AugmentedFileError as AFE;
 
-impl SPIOError {
+impl AugementedFileError {
     pub fn description(&self) -> String {
         let (verb, maybe_path) = match *self {
-            SPIOError::Open(ref p) => ("open", p),
-            SPIOError::Read(ref p) => ("read", p),
-            SPIOError::Metadata(ref p) => ("get metadata", p),
-            SPIOError::Write(ref p) => ("write", p),
-            SPIOError::Parse(ref p) => ("parse", p),
+            AFE::Open(ref p) => ("open", p),
+            AFE::Read(ref p) => ("read", p),
+            AFE::Metadata(ref p) => ("get metadata", p),
+            AFE::Write(ref p) => ("write", p),
+            AFE::Parse(ref p) => ("parse", p),
         };
 
         let path_str = match maybe_path {
@@ -54,7 +55,7 @@ impl SPIOError {
     }
 }
 
-impl Display for SPIOError {
+impl Display for AugmentedFileError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&self.description())
     }
@@ -62,115 +63,93 @@ impl Display for SPIOError {
 
 
 /**
- * Trait for turning arbitrary data into a series of bytes that can be put directly
- * into a file or onto the network.
- */
-pub trait VecIntoRawBytes {
-    fn into_raw_bytes(self) -> Vec<u8>;
-}
-
-impl VecIntoRawBytes for Vec<i32> {
-    fn into_raw_bytes(mut self) -> Vec<u8> {
-        let raw_ptr = self.as_mut_ptr();
-        let new_len = self.len() * mem::size_of::<i32>();
-        let new_cap = self.capacity() * mem::size_of::<i32>();
-
-        unsafe {
-            // take full control over memory originally controlled by orig_data
-            mem::forget(self);
-            Vec::from_raw_parts(raw_ptr as *mut u8, new_len, new_cap)
-        }
-    }
-}
-
-/**
  * Expands the functionality of `File` to include JSON encoding, a
  * generalized `open()` and streamlined access to `metadata.length`. All
- * methods return a `Result<_, SPIOError>`, the `Result` wrapping the error
+ * methods return a `Result<_, AFE>`, the `Result` wrapping the error
  * container from this module.
  *
  * Methods come in "basic" and `_p`/"with optional path" form. They accomplish
  * the same thing, except one takes an optional path that will be wrapped in
  * the error container if an error is encountered.
  */
-pub trait SPFile {
+pub trait AugmenetedFile {
     /**
      * Opens a file from the given path with the given `OpenOptions`.
      */
-    fn open_from<'a, 'b>(oo: &'b mut OpenOptions, path: &'a Path) -> Result<File, SPIOError>;
+    fn open_from<'a, 'b>(oo: &'b mut OpenOptions, path: &'a Path) -> Result<File, AFE>;
 
     /**
      * Attempts to read from this file and decode all its contents as a JSON
      * object (`rustc::Decodable`).
      */
-    fn read_json<T: Decodable>(&mut self) -> Result<T, SPIOError> {
+    fn read_json<T: Decodable>(&mut self) -> Result<T, AFE> {
         self._read_json(None)
     }
-    fn read_json_p<'a, T: Decodable>(&mut self, path: &'a Path) -> Result<T, SPIOError> {
+    fn read_json_p<'a, T: Decodable>(&mut self, path: &'a Path) -> Result<T, AFE> {
         self._read_json(Some(path))
     }
-    fn _read_json<'a, T: Decodable>(&mut self, path: Option<&'a Path>) -> Result<T, SPIOError>;
+    fn _read_json<'a, T: Decodable>(&mut self, path: Option<&'a Path>) -> Result<T, AFE>;
 
 
     /**
      * Attempts to write a JSON object (`rustc::Encodable`) to this file.
      */
-    fn write_json<'b, T: Encodable>(&mut self, obj: &'b T) -> Result<(), SPIOError> {
+    fn write_json<'b, T: Encodable>(&mut self, obj: &'b T) -> Result<(), AFE> {
         self._write_json(obj, None)
     }
-    fn write_json_p<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: &'a Path) -> Result<(), SPIOError> {
+    fn write_json_p<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: &'a Path) -> Result<(), AFE> {
         self._write_json(obj, Some(path))
     }
-    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError>;
+    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), AFE>;
 
 
     /**
      * Attempts to obtain the length of this file from filesystem metadata.
      */
-    fn length(&mut self) -> Result<u64, SPIOError> {
+    fn length(&mut self) -> Result<u64, AFE> {
         self._length(None)
     }
-    fn length_p<'a>(&mut self, path: &'a Path) -> Result<u64, SPIOError> {
+    fn length_p<'a>(&mut self, path: &'a Path) -> Result<u64, AFE> {
         self._length(Some(path))
     }
-    fn _length<'a>(&mut self, path: Option<&'a Path>) -> Result<u64, SPIOError>;
+    fn _length<'a>(&mut self, path: Option<&'a Path>) -> Result<u64, AFE>;
 }
 
-impl SPFile for File {
-    fn open_from<'a, 'b>(oo: &'b mut OpenOptions, path: &'a Path) -> Result<File, SPIOError> {
+impl AugmentedFile for File {
+    fn open_from<'a, 'b>(oo: &'b mut OpenOptions, path: &'a Path) -> Result<File, AFE> {
         Ok(try!(
             oo.open(path)
-            .map_err(|_| SPIOError::Open(Some(path.to_owned())))
+            .map_err(|_| AFE::Open(Some(path.to_owned())))
         ))
     }
 
-    fn _read_json<'a, T: Decodable>(&mut self, path: Option<&'a Path>) -> Result<T, SPIOError> {
+    fn _read_json<'a, T: Decodable>(&mut self, path: Option<&'a Path>) -> Result<T, AFE> {
         let mut buffer = String::new();
         try!(
             self.read_to_string(&mut buffer)
-            .map_err(|_| SPIOError::Read(path.map(|p| p.to_owned())))
+            .map_err(|_| AFE::Read(path.map(|p| p.to_owned())))
         );
         json::decode::<T>(&buffer)
-            .map_err(|_| SPIOError::Parse(path.map(|p| p.to_owned())))
+            .map_err(|_| AFE::Parse(path.map(|p| p.to_owned())))
     }
 
-    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), SPIOError> {
+    fn _write_json<'a, 'b, T: Encodable>(&mut self, obj: &'b T, path: Option<&'a Path>) -> Result<(), AFE> {
         let buffer = json::encode(obj).unwrap();
         try!(
             self.write_all(buffer.as_bytes())
-            .map_err(|_| SPIOError::Write(path.map(|p| p.to_owned())))
+            .map_err(|_| AFE::Write(path.map(|p| p.to_owned())))
         );
         try!(
             self.flush()
-            .map_err(|_| SPIOError::Write(path.map(|p| p.to_owned())))
+            .map_err(|_| AFE::Write(path.map(|p| p.to_owned())))
         );
         Ok(())
     }
 
-    fn _length<'a>(&mut self, path: Option<&'a Path>) -> Result<u64, SPIOError> {
+    fn _length<'a>(&mut self, path: Option<&'a Path>) -> Result<u64, AFE> {
         let meta = try!(
             self.metadata()
-            .map_err(|_| SPIOError::Metadata(path.map(|p| p.to_owned())))
+            .map_err(|_| AFE::Metadata(path.map(|p| p.to_owned())))
         );
         Ok(meta.len())
     }
@@ -180,10 +159,10 @@ impl SPFile for File {
  * Overwrite (create if necessary, truncate if already exists) the file
  * residing at the given path with the given JSON object (`rustc::Encodable`).
  */
-pub fn overwrite_json<'a, 'b, T: Encodable>(obj: &'a T, path: &'b Path) -> Result<(), SPIOError> {
+pub fn overwrite_json<'a, 'b, T: Encodable>(obj: &'a T, path: &'b Path) -> Result<(), AFE> {
     let mut file = try!(
         OpenOptions::new().write(true).truncate(true).create(true).open(path)
-        .map_err(|_| SPIOError::Open(Some(path.to_owned())))
+        .map_err(|_| AFE::Open(Some(path.to_owned())))
     );
 
     try!(file.write_json_p(obj, path));
