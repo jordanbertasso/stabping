@@ -15,31 +15,26 @@ extern crate iron;
 extern crate router;
 extern crate mount;
 
-mod data;
-mod workers;
 mod augmented_file;
+mod data;
 mod config;
-mod persist;
-mod reader;
-mod webserver;
-mod wsserver;
+mod workers;
+mod manager;
 
 use std::env;
 use std::path::PathBuf;
 use std::fs;
 use std::fs::{OpenOptions, File};
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::sync::mpsc::channel;
 
 use rustc_serialize::json;
 
-use wsserver::Broadcaster;
-
+use augmented_file::{AugmentedFile, AugmentedFileError as AFE};
 use data::{AsBytes, ToWire};
-use helpers::{SPIOError, SPFile, VecIntoRawBytes};
-use options::{TargetKind, MainConfiguration};
-use persist::ManagerError;
+use config::Config;
+use workers::{Kind, Options};
+use manager::{Manager, ManagerError as ME};
 
 
 fn main() {
@@ -56,13 +51,6 @@ fn main() {
         Ok(targets) => targets,
         Err(e) => handle_fatal_error(e),
     };
-
-    // create a broadcaster to be initialized with the websockets server
-    let broadcaster = Arc::new(Broadcaster::new());
-
-    // start the web and websockets servers
-    webserver::web_server(configuration.clone(), targets.iter());
-    wsserver::ws_server(configuration.clone(), broadcaster.clone());
 
     /*
      * start the workers for all the targets, passing them one end of an MPSC
@@ -82,11 +70,7 @@ fn main() {
             handle_fatal_error(e);
         }
 
-        // broadcast the live data over websockets
-        let mut bytes = Vec::with_capacity(data.space_necessary());
-        bytes.extend_from_slice((kind as u32).as_bytes());
-        data.to_wire(&mut bytes);
-        let _ = broadcaster.send(bytes);
+        // TODO: broadcast the live data over websockets
     }
 }
 
