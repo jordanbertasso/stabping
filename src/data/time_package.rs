@@ -1,5 +1,8 @@
 use std::collections::BTreeSet;
 
+use data::PushAsBytes;
+use data::ToWire;
+
 pub struct TimePackage {
     set: BTreeSet<DataElement>,
 }
@@ -39,7 +42,7 @@ impl ToWire for TimePackage {
         wire.push_as_bytes(self.first().map(|d| d.time).unwrap_or(()));
         for d in self.set.iter() {
             wire.push_as_bytes(d.val);
-            wire.push_as_btyes(d.sd);
+            wire.push_as_bytes(d.sd);
         }
     }
 }

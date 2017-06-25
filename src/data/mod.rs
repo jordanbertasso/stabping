@@ -34,7 +34,7 @@ impl AsBytes for () {
     }
 }
 
-pub trait PushBytes {
+pub trait PushAsBytes {
     fn push_as_bytes<T>(&mut self, val: T) where T: AsBytes;
 }
 

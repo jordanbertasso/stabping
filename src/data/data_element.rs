@@ -1,7 +1,7 @@
 use std::mem;
 use std::cmp::Ordering;
 
-use data::AsBytes;
+use data::PushAsBytes;
 use data::ToWire;
 
 /**
@@ -21,8 +21,8 @@ impl ToWire for DataElement {
     }
 
     fn to_wire(&self, wire: &mut Vec<u8>) {
-        wire.extend_from_slice(self.val.as_bytes());
-        wire.extend_from_slice(self.sd.as_bytes());
+        wire.push_as_bytes(self.val);
+        wire.push_as_bytes(self.sd);
     }
 }
 
