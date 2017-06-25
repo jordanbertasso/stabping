@@ -14,6 +14,12 @@ pub enum TimePackageError {
 use TimePackageError as TPE;
 
 impl TimePackage {
+    fn new() -> Self {
+        TimePackage {
+            set: BTreeSet::new()
+        }
+    }
+
     fn first(&self) -> Option<&DataElement> {
         self.set.iter().next()
     }
