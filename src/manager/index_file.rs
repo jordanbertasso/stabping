@@ -9,6 +9,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Write, BufRead, BufReader};
 use std::sync::{Mutex, RwLock, RwLockReadGuard};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::path::{Path, PathBuf};
 
 use augmented_file::{AugmentedFile, AugmentedFileError as AFE};
@@ -73,18 +74,21 @@ impl IndexFile {
      * exist in the index). Returns the assigned index of the addr.
      */
     pub fn add_addr(&mut self, addr: &str) -> Result<AddrId, ME> {
-        let addr_i = match self.map.get(addr) {
-            Some(i) => *i,
-            None => {
-                let addr_i = self.data.len() as AddrId;
-                self.map.insert(addr.to_owned(), addr_i);
-                self.data.push(addr.to_owned());
-                try!(self.file.write_all(format!("{}\n", addr).as_bytes())
-                     .map_err(|_| ME::IndexFileIO(
-                                  AFE::Write(None))));
-                addr_i
+        let (addr_i, should_insert) = {
+            match self.map.get(addr) {
+                Some(i) => (i.clone(), false),
+                None => (self.data.len() as AddrId, true)
             }
         };
+
+        if should_insert {
+            self.map.insert(addr.to_owned(), addr_i);
+            self.data.push(addr.to_owned());
+            try!(self.file.write_all(format!("{}\n", addr).as_bytes())
+                 .map_err(|_| ME::IndexFileIO(
+                              AFE::Write(None))));
+        }
+
         Ok(addr_i)
     }
 

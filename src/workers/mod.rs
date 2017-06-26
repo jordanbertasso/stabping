@@ -18,20 +18,9 @@ pub struct Options {
     pub interval: u32,  // interval between collection attempts, in millis
 }
 
-pub struct Worker {
-    manager: Arc<Manager>,
-}
 
-impl Worker {
-    fn new(manager: Arc<Manager>) -> Self {
-        Worker {
-            manager: manager,
-        }
-    }
-
-    fn run(&self, results_out: Sender<TimePackage>) -> thread::JoinHandle<()> {
-        match self.manager.kind {
-            Kind::TcpPing => tcpping::run_worker(self, results_out),
-        }
+fn run_worker(manager: Arc<Manager>, results_out: Sender<TimePackage>) -> thread::JoinHandle<()> {
+    match manager.kind {
+        Kind::TcpPing => tcpping::run_worker(manager, results_out),
     }
 }

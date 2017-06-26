@@ -1,30 +1,38 @@
 use workers::Options;
 
+#[derive(Clone)]
 pub enum Kind {
-    TcpPing = 0,
-    // HttpDownload = 1,
+    TcpPing,
+    // HttpDownload,
 }
 
-static ALL_NAMES: [&'static str; 1] = [
-    "tcpping",
-    // "httpdownload",
-];
+struct AssociatedData {
+    id: u32,
+    name: &'static str,
+    default_options_bootstrap: (&'static str, u32),
+}
 
 impl Kind {
-    pub fn id(&self) -> usize { *self as usize }
-    pub fn name(&self) -> &'static str { ALL_NAMES[self.id()] }
-
-    pub fn for_name<'a>(name: &'a str) -> Self {
-        match name {
-            "tcpping" => Kind::TcpPing,
-            _ => unreachable!()
+    fn _associated_data(&self) -> AssociatedData {
+        match *self {
+            Kind::TcpPing => AssociatedData {
+                id: 0,
+                name: "tcpping",
+                default_options_bootstrap: ("google.com:80", 10_000),
+            },
         }
     }
 
+    pub fn id(&self) -> u32 {
+        self._associated_data().id
+    }
+
+    pub fn name(&self) -> &'static str {
+        self._associated_data().name
+    }
+
     pub fn default_options_bootstrap(&self) -> (&'static str, u32) {
-        match *self {
-            Kind::TcpPing => ("google.com:80", 10_000)
-        }
+        self._associated_data().default_options_bootstrap
     }
 }
 

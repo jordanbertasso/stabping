@@ -5,6 +5,7 @@ use workers::Kind;
 
 pub struct TimePackage {
     pub kind: Kind,
+    time: Option<u32>,
     set: BTreeSet<DataElement>,
 }
 
@@ -17,27 +18,26 @@ use self::TimePackageError as TPE;
 impl TimePackage {
     pub fn new(kind: Kind) -> Self {
         TimePackage {
+            time: None,
             kind: kind,
             set: BTreeSet::new()
         }
     }
 
-    fn first(&self) -> Option<&DataElement> {
-        self.set.iter().next()
-    }
-
-    pub fn insert(&mut self, v: DataElement) -> Result<(), TimePackageError> {
-        let perform_insert = || {
-            if self.set.insert(v) {
-                Ok(())
-            } else {
-                Err(TPE::DuplicateEntryForIndex)
+    pub fn insert(&mut self, d: DataElement) -> Result<(), TimePackageError> {
+        macro_rules! perform_insert {
+            () => {
+                if self.set.insert(d) {
+                    Ok(())
+                } else {
+                    Err(TPE::DuplicateEntryForIndex)
+                }
             }
         };
 
-        match self.first() {
-            Some(d) if v.time == d.time => perform_insert(),
-            None => perform_insert(),
+        match self.time {
+            None => perform_insert!(),
+            Some(t) if d.time == t => perform_insert!(),
             _ => Err(TPE::IncompatibleTimes)
         }
     }
@@ -46,18 +46,19 @@ impl TimePackage {
 impl ToWire for TimePackage {
     fn wire_space_necessary(&self) -> usize {
         let len = self.set.len();
-        self.first().map(|d| len * d.wire_space_necessary()).unwrap_or(0)
+        self.set.iter().next().map(|d| len * d.wire_space_necessary()).unwrap_or(0)
     }
 
     fn to_wire(&self, wire: &mut Vec<u8>) {
-        match self.first() {
-            Some(d) => wire.push_as_bytes(d.time),
-            None => ()
-        };
-
-        for d in self.set.iter() {
-            wire.push_as_bytes(d.val);
-            wire.push_as_bytes(d.sd);
+        match self.time {
+            None => (),
+            Some(t) => {
+                wire.push_as_bytes(t);
+                for d in self.set.iter() {
+                    wire.push_as_bytes(d.val);
+                    wire.push_as_bytes(d.sd);
+                }
+            }
         }
     }
 }

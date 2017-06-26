@@ -9,23 +9,21 @@
 use std::thread;
 use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
+use std::net::TcpStream;
+use std::f32::NAN;
 
 use std::time::Duration;
 use time::precise_time_ns;
 use chrono::Local;
 
-use std::net::TcpStream;
-use std::f32::NAN;
-
 use data::{DataElement, TimePackage};
-use super::{Worker, AddrId};
+use manager::Manager;
+use super::AddrId;
 
 /**
  * TCP Ping worker logic
  */
-pub fn run_worker(worker: &Worker, results_out: Sender<TimePackage>) -> thread::JoinHandle<()> {
-    let manager = worker.manager;
-
+pub fn run_worker(manager: Arc<Manager>, results_out: Sender<TimePackage>) -> thread::JoinHandle<()> {
     // start a new thread for the worker
     thread::spawn(move || {
         let mut handles = Vec::new();
@@ -53,10 +51,8 @@ pub fn run_worker(worker: &Worker, results_out: Sender<TimePackage>) -> thread::
                 let (tx, rx) = channel();
                 handles.push((*addr_i, rx));
 
-                /*
-                 * obtain the address string from the address index
-                 */
-                let addr_str = manager.index_read().get_addr(*addr_i).unwrap();
+                // obtain the address string from the address index
+                let addr = manager.index_read().get_addr(*addr_i).unwrap().clone();
 
                 /*
                  * spawn a thread to actually collect the data for each
@@ -65,7 +61,7 @@ pub fn run_worker(worker: &Worker, results_out: Sender<TimePackage>) -> thread::
                 thread::spawn(move || {
                     let start = precise_time_ns();
 
-                    let dur = if TcpStream::connect(addr_str.as_str()).is_ok() {
+                    let dur = if TcpStream::connect(addr.as_str()).is_ok() {
                         (((precise_time_ns() - start) / 100) as f32) / 10_000.
                     } else {
                         NAN
@@ -88,7 +84,7 @@ pub fn run_worker(worker: &Worker, results_out: Sender<TimePackage>) -> thread::
              */
             thread::sleep(dur_interval);
 
-            let package = TimePackage::new(manager.kind);
+            let mut package = TimePackage::new(manager.kind.clone());
 
             // read back the data from the per-addr subthreads
             for (addr_i, h) in handles.drain(..) {
