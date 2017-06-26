@@ -9,10 +9,10 @@ use data::ToWire;
  */
 #[repr(C, packed)]
 pub struct DataElement {
-    time: u32,
-    index: u32,
-    val: f32,  // the raw or averaged value
-    sd: f32,  // the standard deviation (or NaN if value is raw)
+    pub time: u32,
+    pub index: u32,
+    pub val: f32,  // the raw or averaged value
+    pub sd: f32,  // the standard deviation (or NaN if value is raw)
 }
 
 impl ToWire for DataElement {
@@ -31,7 +31,7 @@ impl ToWire for DataElement {
  * over their indices (via get_index()) so that they can be put in BTreeSets.
  */
 impl Ord for DataElement {
-    fn cmp(&self, other: &DiscreteDataOnDisk) -> Ordering {
+    fn cmp(&self, other: &DataElement) -> Ordering {
         self.index.cmp(&other.index)
     }
 }

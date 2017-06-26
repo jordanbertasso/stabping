@@ -28,8 +28,6 @@ use std::fs::{OpenOptions, File};
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::channel;
 
-use rustc_serialize::json;
-
 use augmented_file::{AugmentedFile, AugmentedFileError as AFE};
 use data::{AsBytes, ToWire};
 use config::Config;
@@ -45,7 +43,7 @@ fn main() {
             panic!("Failed to get configuration");
         }
     };
-
+/*
     // create managers for all the targets
     let targets = match TargetKind::new_managers_for_all(&data_path) {
         Ok(targets) => targets,
@@ -72,8 +70,5 @@ fn main() {
 
         // TODO: broadcast the live data over websockets
     }
-}
-
-fn handle_fatal_error(e: ManagerError) -> ! {
-    panic!("{}", e);
+*/
 }

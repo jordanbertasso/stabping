@@ -15,14 +15,15 @@ use time::precise_time_ns;
 use chrono::Local;
 
 use std::net::TcpStream;
+use std::f32::NAN;
 
 use data::{DataElement, TimePackage};
-use persist::TargetManager;
+use super::{Worker, AddrId};
 
 /**
  * TCP Ping worker logic
  */
-pub fn run_worker(worker: &Worker) -> thread::JoinHandle<()> {
+pub fn run_worker(worker: &Worker, results_out: Sender<TimePackage>) -> thread::JoinHandle<()> {
     let manager = worker.manager;
 
     // start a new thread for the worker
@@ -65,9 +66,9 @@ pub fn run_worker(worker: &Worker) -> thread::JoinHandle<()> {
                     let start = precise_time_ns();
 
                     let dur = if TcpStream::connect(addr_str.as_str()).is_ok() {
-                        precise_time_ns() - start
+                        (((precise_time_ns() - start) / 100) as f32) / 10_000.
                     } else {
-                        std::f32::NAN
+                        NAN
                     };
 
                     /*
@@ -77,7 +78,7 @@ pub fn run_worker(worker: &Worker) -> thread::JoinHandle<()> {
                      * we took too long and the control thread is no longer
                      * waiting for us
                      */
-                    let _ = tx.send(((dur / 100) as f32) / 10_000.);
+                    let _ = tx.send(dur);
                 });
             }
 
@@ -87,20 +88,20 @@ pub fn run_worker(worker: &Worker) -> thread::JoinHandle<()> {
              */
             thread::sleep(dur_interval);
 
-            let package = TimePackage::new();
+            let package = TimePackage::new(manager.kind);
 
             // read back the data from the per-addr subthreads
-            for (addr_i, h) in handles.drain(..).enumerate() {
-                data.insert(DataElement {
+            for (addr_i, h) in handles.drain(..) {
+                package.insert(DataElement {
                     time: timestamp,
-                    index: addr_i,
-                    val: h.recv().unwrap_or(std::f32::NAN),
-                    sd: std::f32::NAN,
+                    index: addr_i as AddrId,
+                    val: h.recv().unwrap_or(NAN),
+                    sd: NAN,
                 });
             }
 
             // send off our results to the main thread
-            if results_out.send((worker.kind, package)).is_err() {
+            if results_out.send(package).is_err() {
                 println!("Worker Control: failed to send final results back.");
             }
         }

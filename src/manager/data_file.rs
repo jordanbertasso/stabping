@@ -5,8 +5,11 @@
  * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
  * details.
  */
+use std::mem;
+use std::slice;
 use std::fs::{File, OpenOptions};
 use std::io::{Write, BufRead, BufReader};
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, RwLock, RwLockReadGuard};
 
 use memmap::{Mmap, Protection};
@@ -27,14 +30,17 @@ pub struct DataFile {
 }
 
 impl DataFile {
-    fn from_path<'b>(path: &'b Path) -> Result<Self, ManagerError> {
-        let data_file = try!(
+    fn from_path<'b>(path: &'b Path) -> Result<Self, ME> {
+        let file = try!(
             File::open_from(OpenOptions::new().read(true).append(true).create(true), &path)
             .map_err(|e| ME::DataFileIO(e))
         );
+        Ok(DataFile {
+            file: file,
+        })
     }
 
-    fn map_slice(&mut self) -> Result<&[DataElement], ManagerError> {
+    fn map_slice(&mut self) -> Result<&[DataElement], ME> {
         // attempt to mmap the target's data file
         let map = try!(
             Mmap::open(&mut self.file, Protection::Read)

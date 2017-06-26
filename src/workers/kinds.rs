@@ -17,6 +17,7 @@ impl Kind {
     pub fn for_name<'a>(name: &'a str) -> Self {
         match name {
             "tcpping" => Kind::TcpPing,
+            _ => unreachable!()
         }
     }
 
@@ -24,16 +25,6 @@ impl Kind {
         match *self {
             Kind::TcpPing => ("google.com:80", 10_000)
         }
-    }
-
-    pub fn new_managers_for_all<'a>(data_path: &'a Path) -> Result<Vec<Arc<TargetManager>>, ManagerError> {
-        let mut targets = Vec::with_capacity(ALL_KINDS.len());
-        for k in ALL_KINDS.iter() {
-            targets.push(
-                Arc::new(try!(TargetManager::new(k, data_path)))
-            );
-        }
-        Ok(targets)
     }
 }
 

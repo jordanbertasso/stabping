@@ -13,7 +13,9 @@ use std::fs::{OpenOptions, File};
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use helpers::{SPIOError, SPFile};
+use rustc_serialize::json;
+
+use augmented_file::{AugmentedFile, AugmentedFileError as AFE};
 
 #[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct Config {
@@ -23,7 +25,7 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        MainConfiguration {
+        Config {
             web_port: 5001,
             ws_port: 5002,
         }
@@ -35,10 +37,10 @@ static CONFIG_FILENAME: &'static str = "stabping_config.json";
 /**
  * Attempts to discover the configuration file and associated data directory.
  *
- * Returns a tuple of an `Arc` to the `MainConfiguration` and the path to the
+ * Returns a tuple of an `Arc` to the `Config` and the path to the
  * data directory if found.
  */
-fn get_configuration() -> Option<(Arc<RwLock<Config>>, PathBuf)> {
+pub fn get_configuration() -> Option<(Arc<RwLock<Config>>, PathBuf)> {
     /*
      * the list of (description, path) tuples of directories to try/places we
      * want to check for the existence of the configuration file
@@ -66,7 +68,7 @@ fn get_configuration() -> Option<(Arc<RwLock<Config>>, PathBuf)> {
             println!("- checking {}:\n    {}", desc, p.to_str().unwrap());
             if let Ok(mut file) = File::open_from(OpenOptions::new().read(true), &p) {
                 match file.read_json_p(&p) {
-                    Err(err @ SPIOError::Parse(_)) => {
+                    Err(err @ AFE::Parse(_)) => {
                         /*
                          * if we found the file, could open it, but it was not
                          * filled with JSON, then tell the user
@@ -74,7 +76,7 @@ fn get_configuration() -> Option<(Arc<RwLock<Config>>, PathBuf)> {
                         println!(
                             "\n{} configuration file. Invalid or missing JSON fields. Please ensure that this file is formatted like:\n{}\n",
                             err.description(),
-                            json::as_pretty_json(&MainConfiguration::default())
+                            json::as_pretty_json(&Config::default())
                         );
                         return None
                     },
@@ -117,7 +119,7 @@ fn get_configuration() -> Option<(Arc<RwLock<Config>>, PathBuf)> {
      */
     println!(
         "\nFailed to find configuration file. Please ensure that 'stabping_config.json' is accessible in one of the above checked locations, and is formatted like:\n{}\n",
-        json::as_pretty_json(&MainConfiguration::default())
+        json::as_pretty_json(&Config::default())
     );
     None
 }

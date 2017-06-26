@@ -1,9 +1,10 @@
 use std::collections::BTreeSet;
 
-use data::PushAsBytes;
-use data::ToWire;
+use data::{DataElement, ToWire, PushAsBytes};
+use workers::Kind;
 
 pub struct TimePackage {
+    pub kind: Kind,
     set: BTreeSet<DataElement>,
 }
 
@@ -11,11 +12,12 @@ pub enum TimePackageError {
     IncompatibleTimes,
     DuplicateEntryForIndex,
 }
-use TimePackageError as TPE;
+use self::TimePackageError as TPE;
 
 impl TimePackage {
-    fn new() -> Self {
+    pub fn new(kind: Kind) -> Self {
         TimePackage {
+            kind: kind,
             set: BTreeSet::new()
         }
     }
@@ -24,15 +26,18 @@ impl TimePackage {
         self.set.iter().next()
     }
 
-    fn insert(&mut self, v: DataElement) -> Result<(), TimePackageError> {
-        match self.first() {
-            Some(d) if v.time == d.time | None => {
-                if self.set.insert(d) {
-                    Ok(())
-                } else {
-                    Err(TPE::DuplicateEntryForIndex)
-                }
+    pub fn insert(&mut self, v: DataElement) -> Result<(), TimePackageError> {
+        let perform_insert = || {
+            if self.set.insert(v) {
+                Ok(())
+            } else {
+                Err(TPE::DuplicateEntryForIndex)
             }
+        };
+
+        match self.first() {
+            Some(d) if v.time == d.time => perform_insert(),
+            None => perform_insert(),
             _ => Err(TPE::IncompatibleTimes)
         }
     }
@@ -45,7 +50,11 @@ impl ToWire for TimePackage {
     }
 
     fn to_wire(&self, wire: &mut Vec<u8>) {
-        wire.push_as_bytes(self.first().map(|d| d.time).unwrap_or(()));
+        match self.first() {
+            Some(d) => wire.push_as_bytes(d.time),
+            None => ()
+        };
+
         for d in self.set.iter() {
             wire.push_as_bytes(d.val);
             wire.push_as_bytes(d.sd);

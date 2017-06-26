@@ -5,10 +5,15 @@
  * found at <https://github.com/icasdri/stabping>. See COPYING for licensing
  * details.
  */
+mod data_element;
+mod time_package;
 
 use std::mem;
 use std::slice;
 use std::cmp::Ordering;
+
+pub use self::data_element::DataElement;
+pub use self::time_package::TimePackage;
 
 /**
  * Trait for extracting the bytes (as a u8 slice) out of any Sized value.
@@ -28,17 +33,11 @@ impl<T> AsBytes for T where T: Sized {
     }
 }
 
-impl AsBytes for () {
-    fn as_bytes(&self) -> &[u8] {
-        []
-    }
-}
-
 pub trait PushAsBytes {
     fn push_as_bytes<T>(&mut self, val: T) where T: AsBytes;
 }
 
-impl PushBytes for Vec<u8> {
+impl PushAsBytes for Vec<u8> {
     fn push_as_bytes<T>(&mut self, val: T) where T: AsBytes {
         self.extend_from_slice(val.as_bytes());
     }

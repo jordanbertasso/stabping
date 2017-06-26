@@ -22,7 +22,7 @@ use manager::ManagerError as ME;
  * (a string used in `TargetOptions.addrs`) backed by an index file.
  */
 #[derive(Debug)]
-struct IndexFile {
+pub struct IndexFile {
     file: File,
     data: Vec<String>,
     map: HashMap<String, AddrId>,
@@ -32,7 +32,7 @@ impl IndexFile {
     /**
      * Creates an index backed by the index file residing at the given path.
      */
-    fn from_path<'b>(path: &'b Path) -> Result<Self, ManagerError> {
+    pub fn from_path<'b>(path: &'b Path) -> Result<Self, ME> {
         // attempt to open the index file
         let mut file = try!(
             File::open_from(OpenOptions::new().read(true).append(true).create(true), path)
@@ -58,13 +58,13 @@ impl IndexFile {
         // create the map that will contain the reverse addr -> index mapping
         let mut map = HashMap::new();
         for (addr_i, addr) in data.iter().enumerate() {
-            map.insert(addr.clone(), addr_i);
+            map.insert(addr.clone(), addr_i as AddrId);
         }
 
-        Ok(AddrIndex {
-            file: index_file,
-            data: index_data,
-            map: index_map,
+        Ok(IndexFile {
+            file: file,
+            data: data,
+            map: map,
         })
     }
 
@@ -72,17 +72,20 @@ impl IndexFile {
      * Adds an addr into this index as necessary (if it does not already
      * exist in the index). Returns the assigned index of the addr.
      */
-    fn add_addr(&mut self, addr: &str) -> Result<AddrId, ManagerError> {
-        if let None = self.map.get(addr) {
-            // only deal with it if we don't already have it
-            let addr_i = self.data.len();
-            self.map.insert(addr.to_owned(), addr_i);
-            self.data.push(addr.to_owned());
-            try!(self.file.write_all(format!("{}\n", addr).as_bytes())
-                 .map_err(|_| ME::IndexFileIO(
-                              AFE::Write(None))));
-        }
-        Ok(())
+    pub fn add_addr(&mut self, addr: &str) -> Result<AddrId, ME> {
+        let addr_i = match self.map.get(addr) {
+            Some(i) => *i,
+            None => {
+                let addr_i = self.data.len() as AddrId;
+                self.map.insert(addr.to_owned(), addr_i);
+                self.data.push(addr.to_owned());
+                try!(self.file.write_all(format!("{}\n", addr).as_bytes())
+                     .map_err(|_| ME::IndexFileIO(
+                                  AFE::Write(None))));
+                addr_i
+            }
+        };
+        Ok(addr_i)
     }
 
     /**
@@ -102,7 +105,7 @@ impl IndexFile {
     /**
      * Returns the length (as in number of unique addresses) in this index.
      */
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.data.len()
     }
 }

@@ -24,16 +24,16 @@ use rustc_serialize::{json, Encodable, Decodable};
  * known).
  */
 #[derive(Debug)]
-pub enum AugmenetedFileError {
+pub enum AugmentedFileError {
     Open(Option<PathBuf>),
     Read(Option<PathBuf>),
     Metadata(Option<PathBuf>),
     Write(Option<PathBuf>),
     Parse(Option<PathBuf>),
 }
-use AugmentedFileError as AFE;
+use self::AugmentedFileError as AFE;
 
-impl AugementedFileError {
+impl AugmentedFileError {
     pub fn description(&self) -> String {
         let (verb, maybe_path) = match *self {
             AFE::Open(ref p) => ("open", p),
@@ -72,7 +72,7 @@ impl Display for AugmentedFileError {
  * the same thing, except one takes an optional path that will be wrapped in
  * the error container if an error is encountered.
  */
-pub trait AugmenetedFile {
+pub trait AugmentedFile {
     /**
      * Opens a file from the given path with the given `OpenOptions`.
      */

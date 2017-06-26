@@ -1,9 +1,14 @@
-mod kinds
-mod tcpping
+mod kinds;
+mod tcpping;
 
 use std::thread;
+use std::sync::{Arc, RwLock};
+use std::sync::mpsc::{channel, Sender};
 
-pub use kinds::Kind;
+use data::TimePackage;
+use manager::Manager;
+
+pub use self::kinds::Kind;
 
 pub type AddrId = u32;
 
@@ -14,23 +19,19 @@ pub struct Options {
 }
 
 pub struct Worker {
-    kind: Kind,
     manager: Arc<Manager>,
-    results_out: Sender<TimePackage>,
 }
 
 impl Worker {
-    fn new(kind: Kind, manager: Arc<Manager>, results_out: Sender<TimePackage>) -> Self {
+    fn new(manager: Arc<Manager>) -> Self {
         Worker {
-            kind: kind,
             manager: manager,
-            results_out: results_out,
         }
     }
 
-    fn run(&self) -> thread::JoinHandle<()> {
-        match self.kind {
-            Kind::TcpPing => tcpping::run_worker(self),
+    fn run(&self, results_out: Sender<TimePackage>) -> thread::JoinHandle<()> {
+        match self.manager.kind {
+            Kind::TcpPing => tcpping::run_worker(self, results_out),
         }
     }
 }
