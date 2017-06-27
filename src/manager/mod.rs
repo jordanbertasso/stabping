@@ -9,20 +9,12 @@ mod manager_error;
 mod index_file;
 mod data_file;
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::fs::File;
-use std::io::Write;
-use std::io::BufReader;
 use std::sync::{Mutex, RwLock, RwLockReadGuard};
-use std::ops::Deref;
-use std::iter;
-use std::iter::Extend;
 
 use augmented_file::{AugmentedFile, AugmentedFileError as AFE, overwrite_json};
-use data::AsBytes;
-use data::DataElement;
 use workers::{Kind, Options};
 
 pub use self::manager_error::ManagerError;

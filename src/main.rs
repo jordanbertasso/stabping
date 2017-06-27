@@ -21,17 +21,10 @@ mod config;
 mod workers;
 mod manager;
 
-use std::env;
-use std::path::PathBuf;
-use std::fs;
-use std::fs::{OpenOptions, File};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::sync::mpsc::channel;
 
-use augmented_file::{AugmentedFile, AugmentedFileError as AFE};
-use data::{AsBytes, ToWire};
-use config::Config;
-use workers::{Kind, Options};
+use workers::run_worker;
 use manager::{Manager, ManagerError as ME};
 
 

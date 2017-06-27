@@ -10,7 +10,6 @@ mod time_package;
 
 use std::mem;
 use std::slice;
-use std::cmp::Ordering;
 
 pub use self::data_element::DataElement;
 pub use self::time_package::TimePackage;

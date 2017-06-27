@@ -1,5 +1,3 @@
-use workers::Options;
-
 #[derive(Clone)]
 pub enum Kind {
     TcpPing,

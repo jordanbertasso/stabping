@@ -10,7 +10,6 @@
  * Helper traits and functions for reducing verbosity, wraping errors, and
  * containing unsafe code for many commonly used I/O and parsing operations.
  */
-use std::mem;
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
 use std::fs::{OpenOptions, File};

@@ -9,8 +9,7 @@ use std::mem;
 use std::slice;
 use std::fs::{File, OpenOptions};
 use std::io::{Write, BufRead, BufReader};
-use std::path::{Path, PathBuf};
-use std::sync::{Mutex, RwLock, RwLockReadGuard};
+use std::path::Path;
 
 use memmap::{Mmap, Protection};
 
@@ -44,7 +43,7 @@ impl DataFile {
         // attempt to mmap the target's data file
         let map = try!(
             Mmap::open(&mut self.file, Protection::Read)
-            .map_err(|e| ME::DataFileIO(AFE::Read(None)))
+            .map_err(|_| ME::DataFileIO(AFE::Read(None)))
         );
 
         // attempt to read the bytes of the mapped data as a series of DataElements

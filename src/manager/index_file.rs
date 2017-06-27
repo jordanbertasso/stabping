@@ -7,10 +7,8 @@
  */
 use std::fs::{File, OpenOptions};
 use std::io::{Write, BufRead, BufReader};
-use std::sync::{Mutex, RwLock, RwLockReadGuard};
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use augmented_file::{AugmentedFile, AugmentedFileError as AFE};
 use workers::AddrId;
