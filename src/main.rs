@@ -23,45 +23,73 @@ mod manager;
 
 use std::sync::Arc;
 use std::sync::mpsc::channel;
+use std::fmt::Display;
+use std::ops::Deref;
+use std::process::exit as process_exit;
 
-use workers::run_worker;
-use manager::{Manager, ManagerError as ME};
+use workers::{Kind, ALL_KINDS, run_worker};
+use manager::{Manager, ManagerError, ManagerError as ME};
+use augmented_file::AugmentedFileError as AFE;
 
+
+enum TopLevelError {
+    InConfiguration,
+    InManager(ME),
+}
+use TopLevelError as TLE;
+
+impl From<ManagerError> for TopLevelError {
+    fn from(m: ManagerError) -> Self {
+        TLE::InManager(m)
+    }
+}
 
 fn main() {
-    // try and obtain our configuration and data directory path
-    let (configuration, data_path) = match config::get_configuration() {
-        Some(c) => c,
-        None => {
-            panic!("Failed to get configuration");
+    let result = wrapped_main();
+
+    fn exit<M>(msg: M, code: i32) -> ! where M: Display {
+        println!("{}", msg);
+        process_exit(code);
+    }
+
+    match result {
+        Ok(_) => (),
+        Err(e) => match e {
+            TLE::InConfiguration => exit("Failed to get configuration", 2),
+            TLE::InManager(m) => exit(m, 3),
         }
-    };
-/*
-    // create managers for all the targets
-    let targets = match TargetKind::new_managers_for_all(&data_path) {
-        Ok(targets) => targets,
-        Err(e) => handle_fatal_error(e),
+    }
+}
+
+fn wrapped_main() -> Result<(), TopLevelError> {
+    // try and obtain our configuration and data directory path
+    let (configuration, data_path) = try!(
+        config::get_configuration().ok_or(TLE::InConfiguration)
+    );
+
+    // create managers for all targets
+    let managers: Vec<Arc<Manager>> = {
+        let mut vec = Vec::with_capacity(ALL_KINDS.len());
+        for &kind in ALL_KINDS.iter() {
+            let manager = try!(Manager::new(kind, &data_path));
+            vec.push(Arc::new(manager));
+        }
+        vec
     };
 
-    /*
-     * start the workers for all the targets, passing them one end of an MPSC
-     * communications channel so that we can receive all the data
-     */
+    // start workers for all targets (passing one end of channel so we can receive data)
     let (sender, results) = channel();
-    for tm in targets.iter() {
-        tm.kind.run_worker(tm.clone(), sender.clone());
+    for manager in managers.iter() {
+        run_worker(manager.clone(), sender.clone());
     }
 
     /*
      * receive the live data coming from the workers and process it
      */
-    for (kind, data) in results {
-        // append the data to the data file via the appropriate manager
-        if let Err(e) = targets[kind].append_data(&r) {
-            handle_fatal_error(e);
-        }
-
+    for package in results {
+        // TODO: append data to respective manager data file
         // TODO: broadcast the live data over websockets
     }
-*/
+
+    Ok(())
 }

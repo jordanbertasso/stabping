@@ -4,6 +4,11 @@ pub enum Kind {
     // HttpDownload,
 }
 
+pub static ALL_KINDS: [Kind; 1] = [
+    Kind::TcpPing,
+    // Kind::HttpDownload,
+];
+
 struct AssociatedData {
     id: u32,
     name: &'static str,

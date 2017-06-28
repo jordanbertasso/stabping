@@ -8,7 +8,7 @@ use std::sync::mpsc::Sender;
 use data::TimePackage;
 use manager::Manager;
 
-pub use self::kinds::Kind;
+pub use self::kinds::{Kind, ALL_KINDS};
 
 pub type AddrId = u32;
 
