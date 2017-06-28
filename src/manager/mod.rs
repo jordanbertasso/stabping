@@ -6,6 +6,7 @@
  * details.
  */
 mod manager_error;
+mod feeds;
 mod index_file;
 mod data_file;
 
@@ -13,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::sync::{Mutex, RwLock, RwLockReadGuard};
+use std::collections::HashMap;
 
 use augmented_file::{AugmentedFile, AugmentedFileError as AFE, overwrite_json};
 use workers::{Kind, Options};
@@ -20,6 +22,7 @@ use workers::{Kind, Options};
 pub use self::manager_error::ManagerError;
 use self::ManagerError as ME;
 
+pub use self::feeds::Feed;
 use self::index_file::IndexFile;
 use self::data_file::DataFile;
 
@@ -34,10 +37,7 @@ pub struct Manager {
 
     index_file: RwLock<IndexFile>,
 
-    // raw_data_file: RwLock<DataFile>,
-    // hourly_data_file: RwLock<DataFile>,
-    // daily_data_file: RwLock<DataFile>,
-    // weekly_data_file: RwLock<DataFile>,
+    data_files: HashMap<Feed, RwLock<DataFile>>,
 
     options_path: Mutex<PathBuf>,
     options: RwLock<Options>,
@@ -93,6 +93,8 @@ impl Manager {
             kind: kind,
 
             index_file: RwLock::new(index_file),
+
+            data_files: HashMap::new(),
 
             options_path: Mutex::new(path),
             options: RwLock::new(options),

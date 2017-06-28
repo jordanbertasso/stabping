@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Eq, PartialEq, Hash, Copy, Clone)]
 pub enum Kind {
     TcpPing,
     // HttpDownload,

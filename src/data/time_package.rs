@@ -1,10 +1,12 @@
 use std::collections::BTreeSet;
 
 use data::{DataElement, ToWire, PushAsBytes};
+use manager::Feed;
 use workers::Kind;
 
 pub struct TimePackage {
     pub kind: Kind,
+    feed: Feed,
     time: Option<u32>,
     set: BTreeSet<DataElement>,
 }
@@ -16,10 +18,11 @@ pub enum TimePackageError {
 use self::TimePackageError as TPE;
 
 impl TimePackage {
-    pub fn new(kind: Kind) -> Self {
+    pub fn new(kind: Kind, feed: Feed) -> Self {
         TimePackage {
-            time: None,
             kind: kind,
+            feed: feed,
+            time: None,
             set: BTreeSet::new()
         }
     }
@@ -53,6 +56,7 @@ impl ToWire for TimePackage {
         match self.time {
             None => (),
             Some(t) => {
+                wire.push_as_bytes(self.kind.id());
                 wire.push_as_bytes(t);
                 for d in self.set.iter() {
                     wire.push_as_bytes(d.val);

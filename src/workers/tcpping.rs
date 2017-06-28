@@ -17,7 +17,7 @@ use time::precise_time_ns;
 use chrono::Local;
 
 use data::{DataElement, TimePackage};
-use manager::Manager;
+use manager::{Manager, Feed};
 use super::AddrId;
 
 /**
@@ -84,7 +84,7 @@ pub fn run_worker(manager: Arc<Manager>, results_out: Sender<TimePackage>) -> th
              */
             thread::sleep(dur_interval);
 
-            let mut package = TimePackage::new(manager.kind.clone());
+            let mut package = TimePackage::new(manager.kind, Feed::Raw);
 
             // read back the data from the per-addr subthreads
             for (addr_i, h) in handles.drain(..) {
