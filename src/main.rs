@@ -68,14 +68,11 @@ fn wrapped_main() -> Result<(), TopLevelError> {
     );
 
     // create managers for all targets
-    let managers: Vec<Arc<Manager>> = {
-        let mut vec = Vec::with_capacity(ALL_KINDS.len());
-        for &kind in ALL_KINDS.iter() {
-            let manager = try!(Manager::new(kind, &data_path));
-            vec.push(Arc::new(manager));
-        }
-        vec
-    };
+    let managers: Vec<Arc<Manager>> = try!(
+        ALL_KINDS.iter().map(|&kind| Manager::new(kind, &data_path))
+                        .map(|manager_res| manager_res.map(|manager| Arc::new(manager)))
+                        .collect()
+    );
 
     // start workers for all targets (passing one end of channel so we can receive data)
     let (sender, results) = channel();
