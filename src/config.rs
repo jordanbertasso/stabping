@@ -65,7 +65,7 @@ pub fn get_configuration() -> Option<(Arc<RwLock<Config>>, PathBuf)> {
              * if we could obtain a path to this location, try and open the
              * configuration file that might be there
              */
-            println!("- checking {}:\n    {}", desc, p.to_str().unwrap());
+            println!("  checking {} at\n     {}", desc, p.to_str().unwrap());
             if let Ok(mut file) = File::open_from(OpenOptions::new().read(true), &p) {
                 match file.read_json_p(&p) {
                     Err(err @ AFE::Parse(_)) => {

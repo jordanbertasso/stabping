@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{btree_set, BTreeSet};
 
 use data::{DataElement, ToWire, PushAsBytes};
 use manager::Feed;
@@ -45,6 +45,10 @@ impl TimePackage {
             _ => Err(TPE::IncompatibleTimes)
         }
     }
+
+    pub fn iter(&self) -> btree_set::Iter<DataElement> {
+        self.set.iter()
+    }
 }
 
 impl ToWire for TimePackage {
@@ -67,4 +71,3 @@ impl ToWire for TimePackage {
         }
     }
 }
-

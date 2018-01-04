@@ -17,6 +17,7 @@ use std::sync::{Mutex, RwLock, RwLockReadGuard};
 use std::collections::HashMap;
 
 use augmented_file::{AugmentedFile, AugmentedFileError as AFE, overwrite_json};
+use data::{DataElement, TimePackage};
 use workers::{Kind, Options};
 
 pub use self::manager_error::ManagerError;
@@ -58,6 +59,7 @@ impl Manager {
 
         // attempt to open the target's data file
         path.push(format!("{}.data.dat", kind.name()));
+        // TODO: actually delegate these to data_files and initialize that hashmap
         path.pop();
 
         // attempt to open the target's options file
@@ -118,7 +120,7 @@ impl Manager {
     /**
      * Attempts to update this target's options with the given new options.
      */
-    pub fn options_update(&self, new_options: Options) -> Result<(), ManagerError> {
+    pub fn options_update(&self, new_options: Options) -> Result<(), ME> {
         {
             let index_guard = self.index_read();
             for addr_i in new_options.addrs.iter() {
@@ -137,6 +139,19 @@ impl Manager {
         );
 
         println!("Updated {} options: {:?}", self.kind.name(), *options_guard);
+        Ok(())
+    }
+
+    pub fn append_package(&self, package: &TimePackage) -> Result<(), ME> {
+        // TODO: keep track of averages and standard deviation for different feeds
+
+        let mut raw_data_file = self.data_files.get(&Feed::Raw).unwrap()
+                                .write().unwrap();
+
+        for element in package.iter() {
+            try!(raw_data_file.append_element(element));
+        }
+
         Ok(())
     }
 }

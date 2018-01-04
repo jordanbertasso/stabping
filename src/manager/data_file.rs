@@ -15,15 +15,8 @@ use std::path::Path;
 use memmap::{Mmap, Protection};
 
 use augmented_file::{AugmentedFile, AugmentedFileError as AFE};
-use data::DataElement;
+use data::{DataElement, AsBytes};
 use manager::ManagerError as ME;
-
-pub enum DataFileType {
-    Raw,
-    Hourly,
-    Daily,
-    Weekly,
-}
 
 pub struct DataFile {
     file: File,
@@ -35,7 +28,7 @@ pub struct DataFileMapping {
 }
 
 impl DataFile {
-    fn from_path<'b>(path: &'b Path) -> Result<Self, ME> {
+    pub fn from_path<'b>(path: &'b Path) -> Result<Self, ME> {
         let file = try!(
             File::open_from(OpenOptions::new().read(true).append(true).create(true), &path)
             .map_err(|e| ME::DataFileIO(e))
@@ -45,7 +38,7 @@ impl DataFile {
         })
     }
 
-    fn mmap(&mut self) -> Result<DataFileMapping, ME> {
+    pub fn mmap(&mut self) -> Result<DataFileMapping, ME> {
         // attempt to mmap the target's data file
         let map = try!(
             Mmap::open(&mut self.file, Protection::Read)
@@ -63,6 +56,11 @@ impl DataFile {
             mapping: map,
             de_len: de_len,
         })
+    }
+
+    pub fn append_element(&mut self, data: &DataElement) -> Result<(), ME> {
+        self.file.write_all(data.as_bytes())
+        .map_err(|_| ME::DataFileIO(AFE::Write(None)))
     }
 }
 

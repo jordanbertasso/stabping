@@ -84,6 +84,11 @@ fn wrapped_main() -> Result<(), TopLevelError> {
      * receive the live data coming from the workers and process it
      */
     for package in results {
+        let manager = &managers[package.kind.id() as usize];
+        if let Err(e) = manager.append_package(&package) {
+            println!("main: Error appending data: {}", e);
+        }
+
         // TODO: append data to respective manager data file
         // TODO: broadcast the live data over websockets
     }
