@@ -11,6 +11,7 @@ pub struct TimePackage {
     set: BTreeSet<DataElement>,
 }
 
+#[derive(Debug)]
 pub enum TimePackageError {
     IncompatibleTimes,
     DuplicateEntryForIndex,

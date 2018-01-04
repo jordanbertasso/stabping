@@ -31,19 +31,13 @@ pub fn run_worker(manager: Arc<Manager>, results_out: Sender<TimePackage>) -> th
         // continue to collect data forever
         loop {
             // retrieve the target's current options
-            let (dur_interval, num_addrs) = {
-                let ref opt = manager.options_read();
-                (
-                    Duration::from_millis(opt.interval as u64),
-                    opt.addrs.len(),
-                )
-            };
+            let ref opt = manager.options_read();
+            let dur_interval = Duration::from_millis(opt.interval as u64);
 
             // get the current time (to timestamp this round of data with)
             let timestamp: u32 = Local::now().timestamp() as u32;
 
-            let ref t_opt = manager.options_read();
-            for addr_i in t_opt.addrs.iter() {
+            for addr_i in opt.addrs.iter() {
                 /*
                  * create channels so the per-addr threads can send back
                  * their data to the worker thread
@@ -78,6 +72,9 @@ pub fn run_worker(manager: Arc<Manager>, results_out: Sender<TimePackage>) -> th
                 });
             }
 
+            // release mutex on options before waiting
+            drop(opt);
+
             /*
              * wait out the designated data-collectiong interval, while giving
              * the per-addr subthreads the entire interval of time to come back
@@ -93,12 +90,12 @@ pub fn run_worker(manager: Arc<Manager>, results_out: Sender<TimePackage>) -> th
                     index: addr_i as AddrId,
                     val: h.recv().unwrap_or(NAN),
                     sd: NAN,
-                });
+                }).expect("tcpping: unexpected error during result packaging");
             }
 
             // send off our results to the main thread
             if results_out.send(package).is_err() {
-                println!("Worker Control: failed to send final results back.");
+                println!("tcpping: failed to send final results back");
             }
         }
     })
