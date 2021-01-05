@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  stabping:
+    build: .
+    expose:
+      - "5000"
+      - "5001"
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stabping.rule=Host(`stabping.bertasso.me`)"
+      - "traefik.http.routers.stabping.entrypoints=websecure,web"
+      - "traefik.http.routers.stabping.service=stabping"
+      - "traefik.http.routers.stabping.tls=true"
+      - "traefik.http.routers.stabping.tls.certresolver=cloudflare"
+      - "traefik.http.services.stabping.loadbalancer.server.port=5001"
+      - "traefik.http.middlewares.stabping.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.stabping.redirectscheme.permanent=true"
+    volumes:
+      - stabping_data:/stabping/stabping_data/
+    networks:
+      - proxy
+
+volumes:
+  stabping_data:
+
+networks:
+  proxy:
+    external: true
+
